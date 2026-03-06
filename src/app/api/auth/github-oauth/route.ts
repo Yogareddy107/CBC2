@@ -6,7 +6,8 @@ export async function GET(request: NextRequest) {
     try {
         const { account } = await createAdminClient();
 
-        const redirectUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/github-callback`;
+        const origin = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
+        const redirectUrl = `${origin}/auth/github-callback`;
 
         console.log('GitHub OAuth Request:', {
             provider: 'github',

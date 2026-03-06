@@ -20,12 +20,12 @@ export default function OAuthDiagnosticsPage() {
       const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
       const googleId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
       const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-      
+
       setChecks(prev => ({
         ...prev,
-        env: (clientId && googleId && appUrl) ? 'success' : 'error',
-        redirectUrl: appUrl ? 'success' : 'error',
-        googleRedirectUrl: appUrl ? 'success' : 'error',
+        env: (clientId && googleId) ? 'success' : 'error',
+        redirectUrl: 'warning', // No longer strictly dependent on appUrl being set in env
+        googleRedirectUrl: 'warning',
       }));
 
       // Check Appwrite connection
@@ -130,7 +130,7 @@ export default function OAuthDiagnosticsPage() {
               <div className="text-sm text-[#1A1A1A]/70 ml-8 space-y-2">
                 <p>Your OAuth callback URL should be:</p>
                 <code className="block bg-gray-100 p-2 rounded mt-2 font-mono text-xs">
-                  {(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000')}/auth/github-callback
+                  {(typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000')}/auth/github-callback
                 </code>
               </div>
             </div>
@@ -144,7 +144,7 @@ export default function OAuthDiagnosticsPage() {
               <div className="text-sm text-[#1A1A1A]/70 ml-8 space-y-2">
                 <p>Your Google OAuth callback URL should be:</p>
                 <code className="block bg-gray-100 p-2 rounded mt-2 font-mono text-xs">
-                  {(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000')}/auth/google-callback
+                  {(typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000')}/auth/google-callback
                 </code>
               </div>
             </div>

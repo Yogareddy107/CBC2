@@ -11,7 +11,8 @@ export async function GET(request: NextRequest) {
         }
         const { account } = await createAdminClient();
 
-        const redirectUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/google-callback`;
+        const origin = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
+        const redirectUrl = `${origin}/auth/google-callback`;
 
         console.log('Google OAuth Request:', {
             provider: 'google',
