@@ -14,11 +14,11 @@ async function assertAdmin() {
   return user;
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await assertAdmin();
 
-    const conversationId = params.id;
+    const { id: conversationId } = await params;
 
     await db.update(conversations)
       .set({ status: 'resolved' })

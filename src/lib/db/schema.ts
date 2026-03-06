@@ -7,6 +7,7 @@ export const analyses = sqliteTable("analyses", {
     repo_url: text("repo_url").notNull(),
     status: text("status", { enum: ["pending", "running", "completed", "failed"] }).default("pending"),
     result: text("result", { mode: "json" }),
+    result_length: integer("result_length").default(0),
     summary: text("summary"),
     error_message: text("error_message"),
     created_at: text("created_at").default(sql`CURRENT_TIMESTAMP`),

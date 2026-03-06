@@ -291,7 +291,7 @@ function DependencyAnalysis({ data }: { data: AnalysisResult['dependencyAnalysis
                     <p className="text-xs text-muted-foreground mb-3">Imporant files that everyone depends on.</p>
                     <ul className="space-y-2">
                         {data.centralNodes?.map((node, i) => (
-                            <li key={i} className="text-sm font-mono bg-secondary/30 px-2 py-1 rounded truncate border border-border/50">{node}</li>
+                            <li key={i} className="text-sm font-mono bg-secondary/30 px-2 py-1 rounded break-all border border-border/50">{node}</li>
                         ))}
                     </ul>
                 </Card>
@@ -302,7 +302,7 @@ function DependencyAnalysis({ data }: { data: AnalysisResult['dependencyAnalysis
                     <p className="text-xs text-muted-foreground mt-2">Each circle represents a file. The size shows complexity, lines show how they&apos;re coupled.</p>
                     <ul className="space-y-2">
                         {data.topConsumers?.map((node, i) => (
-                            <li key={i} className="text-sm font-mono bg-secondary/30 px-2 py-1 rounded truncate border border-border/50">{node}</li>
+                            <li key={i} className="text-sm font-mono bg-secondary/30 px-2 py-1 rounded break-all border border-border/50">{node}</li>
                         ))}
                     </ul>
                 </Card>
@@ -324,8 +324,8 @@ function BlastRadius({ data }: { data: AnalysisResult['blastRadius'] }) {
                     <ul className="space-y-2">
                         {data.highBlastRadiusAreas?.map((area, i) => (
                             <li key={i} className="text-sm text-foreground/80 flex items-start gap-2">
-                                <span className="text-red-500 mt-1">•</span>
-                                {area}
+                                <span className="text-red-500 mt-1 flex-shrink-0 leading-none">•</span>
+                                <span className="flex-1">{area}</span>
                             </li>
                         ))}
                     </ul>
@@ -338,7 +338,7 @@ function BlastRadius({ data }: { data: AnalysisResult['blastRadius'] }) {
                         {data.safeZones?.map((area, i) => (
                             <li key={i} className="text-sm text-foreground/80 flex items-start gap-2">
                                 <span className="text-green-500 mt-1 flex-shrink-0 leading-none">•</span>
-                                {area}
+                                <span className="flex-1">{area}</span>
                             </li>
                         ))}
                     </ul>
@@ -377,9 +377,9 @@ function Maintainability({ data }: { data: AnalysisResult['maintainability'] }) 
                     <h4 className="text-sm font-bold text-orange-600 uppercase tracking-wide mb-3">Debt Indicators</h4>
                     <div className="space-y-2">
                         {data.technicalDebtIndicators?.map((debt, i) => (
-                            <div key={i} className="flex items-center gap-2 text-sm text-foreground/80">
-                                <Zap className="w-3 h-3 text-orange-400" />
-                                {debt}
+                            <div key={i} className="flex items-start gap-2 text-sm text-foreground/80">
+                                <Zap className="w-3 h-3 text-orange-400 mt-1 flex-shrink-0" />
+                                <span className="flex-1">{debt}</span>
                             </div>
                         ))}
                     </div>
@@ -519,8 +519,8 @@ function Onboarding({ data }: { data: AnalysisResult['onboarding'] }) {
                     </div>
                     <ul className="space-y-2">
                         {data.startHere?.map((file, i) => (
-                            <li key={i} className="flex items-center gap-2">
-                                <ArrowRight className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                            <li key={i} className="flex items-start gap-2">
+                                <ArrowRight className="w-4 h-4 text-blue-500 mt-1 flex-shrink-0" />
                                 <span className="text-sm text-foreground/80 code bg-blue-50 dark:bg-blue-950/30 px-2 py-1 rounded flex-1">
                                     {file}
                                 </span>
@@ -537,8 +537,8 @@ function Onboarding({ data }: { data: AnalysisResult['onboarding'] }) {
                     </div>
                     <ul className="space-y-2">
                         {data.thenRead?.map((file, i) => (
-                            <li key={i} className="flex items-center gap-2">
-                                <ArrowRight className="w-4 h-4 text-purple-500 flex-shrink-0" />
+                            <li key={i} className="flex items-start gap-2">
+                                <ArrowRight className="w-4 h-4 text-purple-500 mt-1 flex-shrink-0" />
                                 <span className="text-sm text-foreground/80 code bg-purple-50 dark:bg-purple-950/30 px-2 py-1 rounded flex-1">
                                     {file}
                                 </span>
@@ -568,7 +568,7 @@ function Onboarding({ data }: { data: AnalysisResult['onboarding'] }) {
                 <ul className="space-y-2">
                     {data.highRiskFiles?.map((file, i) => (
                         <li key={i} className="flex items-start gap-2">
-                            <XCircle className="w-4 h-4 text-red-500 relative top-[2px] flex-shrink-0" />
+                            <XCircle className="w-4 h-4 text-red-500 mt-1 flex-shrink-0" />
                             <span className="text-sm text-foreground/80 code bg-red-50 dark:bg-red-950/30 px-2 py-1 rounded flex-1 leading-relaxed">
                                 {file}
                             </span>
@@ -617,13 +617,13 @@ function Improvements({ data }: { data: AnalysisResult['improvements'] }) {
             <div className="space-y-4">
                 {data?.map((item, i) => (
                     <div key={i} className="flex items-start gap-4 p-4 rounded-xl border bg-card hover:shadow-md transition-all">
-                        <div className={cn("px-2 py-1 rounded text-xs font-bold uppercase",
+                        <div className={cn("px-2 py-1 rounded text-xs font-bold uppercase flex-shrink-0",
                             item.priority === 'High' ? "bg-red-100 text-red-700" :
                                 item.priority === 'Medium' ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"
                         )}>
                             {item.priority}
                         </div>
-                        <div>
+                        <div className="flex-1">
                             <h4 className="font-bold text-foreground text-sm mb-1">{item.title}</h4>
                             <p className="text-sm text-muted-foreground">{item.description}</p>
                         </div>

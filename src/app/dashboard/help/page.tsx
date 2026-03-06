@@ -1,184 +1,223 @@
-import { HelpCircle } from 'lucide-react';
+import {
+  HelpCircle,
+  BookOpen,
+  Zap,
+  Settings,
+  ShieldCheck,
+  MessageSquare,
+  Terminal,
+  Activity,
+  Search,
+  ChevronRight,
+  Info
+} from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 
-function SectionCard({ title, number, children }: { title: string; number: number; children: React.ReactNode }) {
+function HelpCard({
+  title,
+  description,
+  icon: Icon,
+  children,
+  className
+}: {
+  title: string;
+  description?: string;
+  icon: any;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <section className="group rounded-2xl border border-border/20 bg-secondary/5 p-8 shadow-sm transition-colors hover:bg-amber-50/60">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-9 h-9 rounded-full bg-primary/10 text-primary font-semibold">
-            {number}
+    <Card className={`group border-border/40 bg-card/60 backdrop-blur-sm transition-all hover:shadow-lg hover:border-primary/20 ${className}`}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-3 mb-1">
+          <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+            <Icon className="w-5 h-5" />
           </div>
-          <h2 className="text-xl font-semibold text-foreground group-hover:text-primary transition-colors tracking-tight">
-            {title}
-          </h2>
+          <CardTitle className="text-lg font-bold tracking-tight">{title}</CardTitle>
         </div>
-        <div className="text-xs text-muted-foreground">Hover to highlight</div>
-      </div>
-      <div className="space-y-4 text-sm text-foreground/80 leading-relaxed max-w-3xl">
+        {description && <CardDescription className="text-xs">{description}</CardDescription>}
+      </CardHeader>
+      <CardContent>
         {children}
-      </div>
-    </section>
+      </CardContent>
+    </Card>
   );
 }
 
 export default function DashboardHelpPage() {
   return (
-    <div className="max-w-4xl mx-auto px-6 py-20 space-y-10">
-      <header className="space-y-3">
-        <div className="flex items-center gap-3 text-primary">
-          <HelpCircle className="w-6 h-6" />
-          <h1 className="text-3xl font-bold tracking-tight">Help</h1>
+    <div className="max-w-6xl mx-auto px-6 py-12 space-y-12 animate-in fade-in duration-500">
+      {/* Hero Section */}
+      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#FFFDF6] via-white to-amber-50/30 border border-amber-100/20 p-8 md:p-12 text-center space-y-6">
+        <div className="absolute top-0 right-0 p-8 opacity-5">
+          <HelpCircle className="w-64 h-64 -rotate-12" />
         </div>
-        <p className="text-sm text-muted-foreground max-w-2xl">
-          Quick reference for how CheckBeforeCommit works and what to expect from the report.
-        </p>
+
+        <div className="space-y-3 relative z-10">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider mb-2">
+            <Zap className="w-3 h-3" />
+            Support Center
+          </div>
+          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground">
+            How can we <span className="text-primary">help?</span>
+          </h1>
+          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+            Everything you need to know about CheckBeforeCommit and its repository analysis reports.
+          </p>
+        </div>
+
+        <div className="max-w-xl mx-auto relative z-10">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <Input
+              placeholder="Search for guides, features, or FAQs..."
+              className="pl-12 h-14 rounded-2xl border-border/40 shadow-sm focus:ring-primary/20"
+            />
+          </div>
+        </div>
       </header>
 
-      <SectionCard number={1} title="Introduction">
-        <p>
-          CheckBeforeCommit is a developer tool that analyzes GitHub repositories and generates a technical
-          health report. It evaluates repository structure, dependencies, maintainer activity, and code signals to
-          help developers decide whether a project is reliable and worth adopting.
-        </p>
-      </SectionCard>
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Getting Started */}
+        <HelpCard
+          title="Getting Started"
+          description="The basics of CBC analysis"
+          icon={BookOpen}
+        >
+          <div className="space-y-4">
+            <div className="flex items-start gap-3">
+              <Badge variant="outline" className="mt-0.5 bg-amber-50">1</Badge>
+              <p className="text-sm">Paste a public <span className="font-bold">GitHub URL</span> into the dashboard.</p>
+            </div>
+            <div className="flex items-start gap-3">
+              <Badge variant="outline" className="mt-0.5 bg-amber-50">2</Badge>
+              <p className="text-sm">Click <span className="font-bold text-primary">Analyze</span> to start the scan.</p>
+            </div>
+            <div className="flex items-start gap-3">
+              <Badge variant="outline" className="mt-0.5 bg-amber-50">3</Badge>
+              <p className="text-sm">Review the health report and overall verdict.</p>
+            </div>
+          </div>
+        </HelpCard>
 
-      <SectionCard number={2} title="How It Works">
-        <div className="space-y-3">
-          <div>
-            <p className="font-semibold">Step 1 – Enter a GitHub Repository</p>
-            <p>Paste a public GitHub repository URL into the analysis field.</p>
-            <code className="block rounded bg-secondary/20 p-2 text-xs">https://github.com/user/project</code>
-          </div>
-          <div>
-            <p className="font-semibold">Step 2 – Start Analysis</p>
-            <p>Click Analyze Repository. The system scans the repository and extracts structural signals.</p>
-          </div>
-          <div>
-            <p className="font-semibold">Step 3 – View the Report</p>
-            <p>The tool generates a report showing:</p>
-            <ul className="list-disc list-inside space-y-1">
-              <li>Architecture overview</li>
-              <li>Dependency complexity</li>
-              <li>Maintainability signals</li>
-              <li>Risk indicators</li>
-              <li>Overall repository verdict</li>
-            </ul>
-          </div>
-        </div>
-      </SectionCard>
+        {/* Features */}
+        <HelpCard
+          title="Core Features"
+          description="What our engine evaluates"
+          icon={Zap}
+        >
+          <ul className="space-y-3">
+            {[
+              "Architecture Overview",
+              "Dependency Complexity",
+              "Maintainer Activity",
+              "Technical Risk Detection"
+            ].map((f) => (
+              <li key={f} className="flex items-center gap-2 text-sm text-foreground/80">
+                <ChevronRight className="w-3 h-3 text-primary" />
+                {f}
+              </li>
+            ))}
+          </ul>
+        </HelpCard>
 
-      <SectionCard number={3} title="Features">
-        <ul className="list-disc list-inside space-y-2">
-          <li>
-            <span className="font-semibold">Repository Structure Analysis</span>
-            <br />Examines folder structure and project organization.
-          </li>
-          <li>
-            <span className="font-semibold">Dependency Health Check</span>
-            <br />Detects outdated or risky dependencies.
-          </li>
-          <li>
-            <span className="font-semibold">Maintainer Activity Tracking</span>
-            <br />Analyzes commit frequency and contributor activity.
-          </li>
-          <li>
-            <span className="font-semibold">Technical Risk Detection</span>
-            <br />Identifies structural patterns that increase long-term maintenance cost.
-          </li>
-          <li>
-            <span className="font-semibold">Quick Verdict</span>
-            <br />Provides a simple evaluation of whether the repository is safe to adopt.
-          </li>
-        </ul>
-      </SectionCard>
+        {/* Technical Signals */}
+        <HelpCard
+          title="Understanding Signals"
+          description="Deciphering the report results"
+          icon={Activity}
+        >
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm font-bold mb-1">Maintainability Score</p>
+              <p className="text-xs text-muted-foreground">Measures how easy the codebase will be to maintain long-term.</p>
+            </div>
+            <div>
+              <p className="text-sm font-bold mb-1">Risk Signals</p>
+              <p className="text-xs text-muted-foreground">Highlights issues like low testing, inactivity, or poor structure.</p>
+            </div>
+          </div>
+        </HelpCard>
 
-      <SectionCard number={4} title="Understanding the Report">
-        <div className="space-y-3">
-          <div>
-            <p className="font-semibold">Architecture Overview</p>
-            <p>Shows the structure of the repository and how components are organized.</p>
+        {/* Compatibility */}
+        <HelpCard
+          title="Compatibility"
+          description="Supported languages & repos"
+          icon={Terminal}
+        >
+          <div className="flex flex-wrap gap-2">
+            {["JavaScript", "TypeScript", "Python", "Node.js", "Public Repos"].map(tag => (
+              <Badge key={tag} variant="secondary" className="text-[10px] font-bold uppercase">{tag}</Badge>
+            ))}
           </div>
-          <div>
-            <p className="font-semibold">Maintainability Score</p>
-            <p>Measures how easy the codebase will be to maintain long-term.</p>
-          </div>
-          <div>
-            <p className="font-semibold">Risk Signals</p>
-            <p>Highlights potential problems such as:</p>
-            <ul className="list-disc list-inside space-y-1">
-              <li>High dependency complexity</li>
-              <li>Low contributor activity</li>
-              <li>Lack of testing</li>
-              <li>Poor folder structure</li>
-            </ul>
-          </div>
-          <div>
-            <p className="font-semibold">Verdict</p>
-            <p>A final summary indicating whether the project appears stable, risky, or needs further review.</p>
-          </div>
-        </div>
-      </SectionCard>
+          <p className="text-xs text-muted-foreground mt-4 italic">
+            Private repository support arriving in Q3.
+          </p>
+        </HelpCard>
 
-      <SectionCard number={5} title="Supported Repositories">
-        <p>Currently supported:</p>
-        <ul className="list-disc list-inside space-y-1">
-          <li>Public GitHub repositories</li>
-          <li>JavaScript / TypeScript projects</li>
-          <li>Python projects</li>
-          <li>Node.js applications</li>
-        </ul>
-        <p>Future support may include additional languages and private repositories.</p>
-      </SectionCard>
-
-      <SectionCard number={6} title="Troubleshooting">
-        <p>Repository not loading? Check if:</p>
-        <ul className="list-disc list-inside space-y-1">
-          <li>The repository URL is correct</li>
-          <li>The repository is public</li>
-          <li>GitHub API rate limits are not exceeded</li>
-        </ul>
-      </SectionCard>
-
-      <SectionCard number={7} title="FAQ">
-        <div className="space-y-4">
-          <div>
-            <p className="font-semibold">Q: Does this tool modify my repository?</p>
-            <p>No. CheckBeforeCommit only analyzes public repository data.</p>
+        {/* Security */}
+        <HelpCard
+          title="Privacy & Security"
+          description="Your data is safe with us"
+          icon={ShieldCheck}
+        >
+          <p className="text-sm text-foreground/80 mb-4">
+            CheckBeforeCommit only analyzes public repository data. We never modify your code.
+          </p>
+          <div className="space-y-2">
+            <a href="https://cbc1.vercel.app/privacy" className="text-xs text-primary hover:underline flex items-center gap-1">
+              Privacy Policy <ChevronRight className="w-3 h-3" />
+            </a>
           </div>
-          <div>
-            <p className="font-semibold">Q: Does it support private repositories?</p>
-            <p>Currently only public repositories are supported.</p>
-          </div>
-          <div>
-            <p className="font-semibold">Q: How long does analysis take?</p>
-            <p>Most repositories are analyzed within a few seconds.</p>
-          </div>
-        </div>
-      </SectionCard>
+        </HelpCard>
 
-      <SectionCard number={8} title="Contact / Support">
-        <p>If you experience issues or want to report bugs:</p>
-        <ul className="list-disc list-inside space-y-1">
-          <li>
-            Email: <a href="mailto:teamintrasphere@gmail.com" className="text-primary hover:underline">teamintrasphere@gmail.com</a>
-          </li>
-          <li>
-            Privacy Policy: <a href="https://cbc1.vercel.app/privacy" className="text-primary hover:underline">https://cbc1.vercel.app/privacy</a>
-          </li>
-          <li>
-            Terms of Service: <a href="https://cbc1.vercel.app/terms" className="text-primary hover:underline">https://cbc1.vercel.app/terms</a>
-          </li>
-          <li>
-            Cookie Policy: <a href="https://cbc1.vercel.app/cookies" className="text-primary hover:underline">https://cbc1.vercel.app/cookies</a>
-          </li>
-        </ul>
-      </SectionCard>
-
-      <div className="rounded-2xl border border-border/20 bg-secondary/5 p-6">
-        <p className="text-sm text-muted-foreground">
-          Important advice: This page avoids marketing hype. It focuses on how the tool works, what it provides, and how to use it.
-        </p>
+        {/* Support */}
+        <HelpCard
+          title="Contact & Support"
+          description="Need more help?"
+          icon={MessageSquare}
+          className="bg-primary/5 border-primary/20"
+        >
+          <p className="text-sm mb-4">Talk to our developers directly via the <span className="font-bold">Support Chat</span>.</p>
+          <a href="mailto:teamintrasphere@gmail.com" className="text-sm font-bold text-primary hover:underline block mb-1">
+            teamintrasphere@gmail.com
+          </a>
+          <p className="text-[10px] text-muted-foreground">Avg. response time: &lt; 24h</p>
+        </HelpCard>
       </div>
+
+      {/* FAQ Accordion Mockup */}
+      <section className="space-y-6">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold tracking-tight mb-2">Frequently Asked Questions</h2>
+          <p className="text-muted-foreground text-sm">Quick answers to common queries.</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[
+            { q: "How long does analysis take?", a: "Most repositories are analyzed within 3-5 seconds." },
+            { q: "Is it free for open source?", a: "Yes, public repo analysis is free for all users." },
+            { q: "Does it support GitLab?", a: "Currently, only GitHub is supported." },
+            { q: "Can I export the report?", a: "Report export features are currently in development." }
+          ].map((faq, i) => (
+            <div key={i} className="p-5 rounded-2xl border border-border/30 bg-secondary/5 hover:border-primary/20 transition-colors">
+              <p className="font-bold text-sm mb-2">{faq.q}</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">{faq.a}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Footer Info */}
+      <footer className="pt-8 border-t border-border/20 text-center">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary/50 text-muted-foreground text-[10px] font-bold uppercase tracking-widest">
+          <Info className="w-3 h-3 text-primary" />
+          Professional Technical Analysis Engine
+        </div>
+      </footer>
     </div>
   );
 }

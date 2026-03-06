@@ -3,7 +3,7 @@ import { createSessionClient } from '@/lib/appwrite';
 import { db } from '@/lib/db';
 import { conversations, messages } from '@/lib/db/schema';
 import { ALLOWED_ADMIN_EMAILS } from '@/lib/admin';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, desc } from 'drizzle-orm';
 
 export async function GET() {
   try {
@@ -14,14 +14,14 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    const convos = await db.select().from(conversations).orderBy(conversations.created_at, 'desc');
+    const convos = await db.select().from(conversations).orderBy(desc(conversations.created_at));
 
     const formatted = await Promise.all(
       convos.map(async (conversation) => {
         const [last] = await db.select({ message: messages.message })
           .from(messages)
           .where(eq(messages.conversation_id, conversation.id))
-          .orderBy(messages.created_at, 'desc')
+          .orderBy(desc(messages.created_at))
           .limit(1);
 
         const [unread] = await db.select({ unread: sql`COUNT(*)` })

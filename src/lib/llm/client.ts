@@ -338,6 +338,10 @@ export async function analyzeRepo(repoData: {
     description: string;
     language: string;
     tree: string[];
+    readme?: string;
+    packageJson?: string;
+    architecture?: string;
+    contributing?: string;
 }) {
     const model = "openai/gpt-4o-mini"; // High performance / low cost for structured output
     const detectionHints = detectProbableEntryPoints(repoData?.tree);
@@ -353,9 +357,15 @@ Codebase Context:
 - File Structure: ${JSON.stringify(repoData?.tree || [], null, 2)}
 - Description: ${repoData?.description || "No description provided."}
 
+REAL REPOSITORY DATA (Crucial for Accuracy):
+- README CONTENT: ${repoData.readme || "Not found"}
+- PACKAGE.JSON: ${repoData.packageJson || "Not found"}
+- ARCHITECTURE DOCS: ${repoData.architecture || "Not found"}
+- CONTRIBUTING DOCS: ${repoData.contributing || "Not found"}
+
 GOAL:
 Provide a brutal, honest, technically dense assessment of engineering quality, risks, and health.
-
+Use the REAL REPOSITORY DATA above to back every claim. Do not hallucinate dependencies or architectural patterns that aren't mentioned in the README or package.json.
 PRIMARY GOAL:
 Your #1 job is to help a new engineer UNDERSTAND this codebase in 15 minutes.
 NOT just evaluate it — ORIENT them.

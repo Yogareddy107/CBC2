@@ -77,6 +77,7 @@ export async function runAnalysis(analysisId: string, repoUrl: string) {
             .set({
                 status: 'completed',
                 result: analysisResult,
+                result_length: JSON.stringify(analysisResult).length,
                 summary: summary,
                 updated_at: new Date().toISOString()
             })

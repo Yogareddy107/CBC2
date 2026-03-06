@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createSessionClient } from '@/lib/appwrite';
 import { db } from '@/lib/db';
 import { conversations, messages } from '@/lib/db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, asc } from 'drizzle-orm';
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { account } = await createSessionClient();
     const user = await account.get();
 
-    const conversationId = params.id;
+    const { id: conversationId } = await params;
 
     const [conversation] = await db.select({ userId: conversations.user_id })
       .from(conversations)
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     const convoMessages = await db.select().from(messages)
       .where(eq(messages.conversation_id, conversationId))
-      .orderBy(messages.created_at, 'asc');
+      .orderBy(asc(messages.created_at));
 
     return NextResponse.json({ messages: convoMessages });
   } catch (error) {
@@ -37,12 +37,12 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { account } = await createSessionClient();
     const user = await account.get();
 
-    const conversationId = params.id;
+    const { id: conversationId } = await params;
     const body = await request.json();
     const messageText = String(body.message || '').trim();
 

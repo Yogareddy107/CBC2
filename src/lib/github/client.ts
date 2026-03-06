@@ -18,38 +18,41 @@ export async function getRepoData(owner: string, repo: string) {
     if (!treeRes.ok) throw new Error(`Failed to fetch tree: ${treeRes.statusText}`);
     const treeData = await treeRes.json();
 
-    // 3. Fetch README (if exists)
-    let readmeContent = "";
-    try {
-        const readmeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/readme`, { headers });
-        if (readmeRes.ok) {
-            const readmeJson = await readmeRes.json();
-            readmeContent = Buffer.from(readmeJson.content, 'base64').toString('utf-8');
+    // 3. Helper for fetching file content safely
+    async function fetchFileContent(path: string) {
+        try {
+            const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, { headers });
+            if (res.ok) {
+                const json = await res.json();
+                if (json.content) {
+                    return Buffer.from(json.content, 'base64').toString('utf-8');
+                }
+            }
+        } catch (e) {
+            console.warn(`Failed to fetch ${path}`, e);
         }
-    } catch (e) {
-        console.warn("README fetch failed", e);
+        return "";
     }
 
-    // 4. Fetch package.json (if exists/relevant for JS/TS)
-    let packageJsonContent = "";
-    try {
-        const pkgRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/package.json`, { headers });
-        if (pkgRes.ok) {
-            const pkgJson = await pkgRes.json();
-            packageJsonContent = Buffer.from(pkgJson.content, 'base64').toString('utf-8');
-        }
-    } catch (e) {
-        console.warn("package.json fetch failed", e);
-    }
+    // 4. Fetch High-Value Content
+    const [readme, packageJson, architecture, contributing] = await Promise.all([
+        fetchFileContent('README.md').then(c => c || fetchFileContent('readme.md')),
+        fetchFileContent('package.json'),
+        fetchFileContent('architecture.md').then(c => c || fetchFileContent('docs/architecture.md')),
+        fetchFileContent('CONTRIBUTING.md')
+    ]);
 
+    // 5. Build Enriched Response
     return {
         name: repoData.name,
         owner: repoData.owner.login,
         description: repoData.description,
         stars: repoData.stargazers_count,
         language: repoData.language,
-        tree: (treeData.tree as { path: string }[]).map((t) => t.path).slice(0, 300), // Limit to top 300 files for context window
-        readme: readmeContent.slice(0, 8000), // Limit README size
-        packageJson: packageJsonContent
+        tree: (treeData.tree as { path: string }[]).map((t) => t.path).slice(0, 400),
+        readme: readme.slice(0, 10000), // Enriched README context
+        packageJson: packageJson,
+        architecture: architecture.slice(0, 8000),
+        contributing: contributing.slice(0, 5000)
     };
 }

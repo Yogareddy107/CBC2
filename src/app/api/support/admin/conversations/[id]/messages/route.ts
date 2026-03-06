@@ -3,7 +3,7 @@ import { createSessionClient } from '@/lib/appwrite';
 import { db } from '@/lib/db';
 import { conversations, messages } from '@/lib/db/schema';
 import { ALLOWED_ADMIN_EMAILS } from '@/lib/admin';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, asc } from 'drizzle-orm';
 
 async function assertAdmin() {
   const { account } = await createSessionClient();
@@ -14,11 +14,11 @@ async function assertAdmin() {
   return user;
 }
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await assertAdmin();
 
-    const conversationId = params.id;
+    const { id: conversationId } = await params;
 
     // Mark user messages as read when admin views
     await db.update(messages)
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     const convoMessages = await db.select().from(messages)
       .where(eq(messages.conversation_id, conversationId))
-      .orderBy(messages.created_at, 'asc');
+      .orderBy(asc(messages.created_at));
 
     return NextResponse.json({ messages: convoMessages });
   } catch (error) {
@@ -38,11 +38,11 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await assertAdmin();
 
-    const conversationId = params.id;
+    const { id: conversationId } = await params;
     const body = await request.json();
     const messageText = String(body.message || '').trim();
 

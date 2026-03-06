@@ -2,21 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createSessionClient } from '@/lib/appwrite';
 import { db } from '@/lib/db';
 import { conversations, messages } from '@/lib/db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, asc, desc } from 'drizzle-orm';
 
 export async function GET() {
   try {
     const { account } = await createSessionClient();
     const user = await account.get();
 
-    const convos = await db.select().from(conversations).where(eq(conversations.user_id, user.$id)).orderBy(conversations.created_at, 'desc');
+    const convos = await db.select().from(conversations).where(eq(conversations.user_id, user.$id)).orderBy(desc(conversations.created_at));
 
     const formatted = await Promise.all(
       convos.map(async (conversation) => {
         const [last] = await db.select({ message: messages.message })
           .from(messages)
           .where(eq(messages.conversation_id, conversation.id))
-          .orderBy(messages.created_at, 'desc')
+          .orderBy(desc(messages.created_at))
           .limit(1);
 
         const [unread] = await db.select({ unread: sql`COUNT(*)` })

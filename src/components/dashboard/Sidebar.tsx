@@ -44,7 +44,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
 
         const interval = setInterval(() => {
             fetchUnread();
-        }, 5000);
+        }, 30000);
 
         return () => {
             isMounted = false;
