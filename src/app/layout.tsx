@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://checkbeforecommit.com'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://checkbeforecommit.vercel.app'),
   title: "CheckBeforeCommit - Code Architecture Analysis",
   description: "Understand any codebase in minutes. Get instant clarity on system architecture, complexity hot-spots, and integration risks.",
   keywords: ["code analysis", "github analysis", "software architecture", "technical debt", "repo overview", "developer productivity"],

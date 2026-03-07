@@ -1,4 +1,5 @@
 import Razorpay from 'razorpay';
+import crypto from 'crypto';
 
 export const razorpay = new Razorpay({
   key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
@@ -110,7 +111,6 @@ export function verifyRazorpaySignature(
   signature: string
 ): boolean {
   try {
-    const crypto = require('crypto');
     const shasum = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!);
     shasum.update(`${orderId}|${paymentId}`);
     const digest = shasum.digest('hex');
@@ -130,7 +130,6 @@ export function verifyWebhookSignature(
   secret: string
 ): boolean {
   try {
-    const crypto = require('crypto');
     const expectedSignature = crypto
       .createHmac('sha256', secret)
       .update(payload)

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import fs from 'fs';
+import path from 'path';
 import { createSessionClient } from '@/lib/appwrite';
 import { db } from '@/lib/db';
 import { conversations, messages } from '@/lib/db/schema';
@@ -102,8 +104,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const errorLog = `\n[${new Date().toISOString()}] Detailed Error in /api/chat/send: ${error instanceof Error ? error.stack : String(error)}\n`;
     try {
-      const fs = require('fs');
-      const path = require('path');
       const logDir = path.join(process.cwd(), 'tmp');
       if (!fs.existsSync(logDir)) fs.mkdirSync(logDir);
       fs.appendFileSync(path.join(logDir, 'api_errors.log'), errorLog);
