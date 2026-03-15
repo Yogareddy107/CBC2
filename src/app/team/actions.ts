@@ -18,10 +18,15 @@ export async function createTeam(name: string) {
     }
 
     try {
+        // Generate a 12-char unique invite code
+        const inviteCode = crypto.randomUUID().replace(/-/g, '').substring(0, 12).toUpperCase();
+
         const [newTeam] = await db.insert(teams).values({
             id: crypto.randomUUID(),
             name: name,
-            owner_id: user.$id
+            invite_code: inviteCode,
+            owner_id: user.$id,
+            plan: 'free'
         }).returning();
 
         if (!newTeam) throw new Error("Failed to create team.");
@@ -37,6 +42,58 @@ export async function createTeam(name: string) {
         return { success: true, team: newTeam };
     } catch (err: any) {
         console.error("Team creation error:", err);
+        return { success: false, error: err.message };
+    }
+}
+
+/**
+ * 1.5 Join a Team via Invite Code
+ */
+export async function joinTeam(inviteCode: string) {
+    let user;
+    try {
+        const { account } = await createSessionClient();
+        user = await account.get();
+    } catch {
+        throw new Error("Unauthorized");
+    }
+
+    try {
+        // Find team by invite code
+        const [team] = await db.select().from(teams)
+            .where(eq(teams.invite_code, inviteCode.toUpperCase()))
+            .limit(1);
+
+        if (!team) throw new Error("Invalid invite code.");
+
+        // Check if already a member
+        const [existingMember] = await db.select().from(team_members)
+            .where(and(eq(team_members.team_id, team.id), eq(team_members.user_id, user.$id)))
+            .limit(1);
+
+        if (existingMember) {
+            return { success: true, teamId: team.id, message: "Already a member." };
+        }
+
+        // Check limits for free plan (e.g. 10 members max as per prompt core concept)
+        const members = await db.select().from(team_members).where(eq(team_members.team_id, team.id));
+        if (team.plan === 'free' && members.length >= 2) {
+            // The prompt says "When free team hits 2 member limit → Show banner"
+            // We should probably allow them to join but show the banner in UI, 
+            // OR enforce it here if it's a hard limit. 
+            // The prompt says "Never hard block — always show upgrade path first".
+            // So we allow joining but the UI will handle the upsell features.
+        }
+
+        await db.insert(team_members).values({
+            id: crypto.randomUUID(),
+            team_id: team.id,
+            user_id: user.$id,
+            role: "member"
+        });
+
+        return { success: true, teamId: team.id };
+    } catch (err: any) {
         return { success: false, error: err.message };
     }
 }
@@ -205,9 +262,15 @@ export async function getComments(analysisId: string) {
 }
 
 /**
- * 9. Mark File as Reviewed
+ * 9. Update File Review Status
  */
-export async function markFileAsReviewed(analysisId: string, teamId: string, filePath: string) {
+export async function updateFileReview(params: {
+    analysisId: string;
+    teamId: string;
+    filePath: string;
+    status: 'pending' | 'reviewed' | 'flagged';
+    note?: string;
+}) {
     let user;
     try {
         const { account } = await createSessionClient();
@@ -217,16 +280,39 @@ export async function markFileAsReviewed(analysisId: string, teamId: string, fil
     }
 
     try {
-        const [review] = await db.insert(file_reviews).values({
-            id: crypto.randomUUID(),
-            analysis_id: analysisId,
-            team_id: teamId,
-            file_path: filePath,
-            reviewer_id: user.$id,
-            status: "reviewed"
-        }).returning();
+        // Check if review already exists for this file/analysis/team
+        const [existing] = await db.select().from(file_reviews)
+            .where(and(
+                eq(file_reviews.analysis_id, params.analysisId),
+                eq(file_reviews.team_id, params.teamId),
+                eq(file_reviews.file_path, params.filePath)
+            ))
+            .limit(1);
 
-        return { success: true, review };
+        if (existing) {
+            await db.update(file_reviews)
+                .set({ 
+                    status: params.status, 
+                    note: params.note,
+                    reviewer_id: user.$id,
+                    created_at: new Date().toISOString() 
+                })
+                .where(eq(file_reviews.id, existing.id));
+            
+            return { success: true, action: 'updated' };
+        }
+
+        await db.insert(file_reviews).values({
+            id: crypto.randomUUID(),
+            analysis_id: params.analysisId,
+            team_id: params.teamId,
+            file_path: params.filePath,
+            reviewer_id: user.$id,
+            status: params.status,
+            note: params.note
+        });
+
+        return { success: true, action: 'created' };
     } catch (err: any) {
         return { success: false, error: err.message };
     }

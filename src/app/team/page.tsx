@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Users, Plus, Loader2, ArrowRight, Settings, ShieldCheck, Mail, BuildingIcon } from 'lucide-react';
+import { Users, Plus, Loader2, ArrowRight, Settings, ShieldCheck, Mail, BuildingIcon, User } from 'lucide-react';
 import { createTeam, getUserTeams, inviteMember } from './actions';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -16,8 +16,8 @@ export default function TeamWorkspacePage() {
     const [isCreating, setIsCreating] = useState(false);
     const [newTeamName, setNewTeamName] = useState('');
     
-    const [inviteEmail, setInviteEmail] = useState('');
-    const [isInviting, setIsInviting] = useState<string | null>(null);
+    const [inviteCode, setInviteCode] = useState('');
+    const [isJoining, setIsJoining] = useState(false);
 
     useEffect(() => {
         loadTeams();
@@ -46,139 +46,153 @@ export default function TeamWorkspacePage() {
         setIsCreating(false);
     };
 
-    const handleInvite = async (e: React.FormEvent, teamId: string) => {
+    const handleJoinTeam = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!inviteEmail) return;
+        if (!inviteCode) return;
 
-        setIsInviting(teamId);
-        const res = await inviteMember(teamId, inviteEmail);
-        setIsInviting(null);
-
+        setIsJoining(true);
+        const res = await joinTeam(inviteCode);
         if (res.success) {
-            alert(res.message);
-            setInviteEmail('');
+            setInviteCode('');
+            loadTeams();
         } else {
-            alert(res.error || "Failed to invite");
+            alert(res.error || "Invalid invite code");
         }
+        setIsJoining(false);
     };
 
     return (
-        <div className="bg-transparent text-foreground font-sans">
-            <main className="max-w-5xl mx-auto px-4 py-8 space-y-12">
+        <div className="min-h-screen bg-[#F8FAFC]">
+            <main className="max-w-7xl mx-auto px-6 py-12 space-y-16">
                 
-                {/* Header */}
-                <div className="space-y-4 max-w-2xl">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider mb-2">
-                        <Users className="w-3.5 h-3.5" /> Team Workspace
+                {/* Hero Section */}
+                <div className="flex flex-col md:flex-row justify-between items-start gap-12">
+                    <div className="max-w-2xl space-y-6">
+                        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#FF7D29]/10 text-[#FF7D29] text-sm font-bold tracking-tight">
+                            <Users className="w-4 h-4" /> Team Workspace
+                        </div>
+                        <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-slate-900 leading-[0.9]">
+                            Analyze Code <span className="text-slate-400">Together.</span>
+                        </h1>
+                        <p className="text-lg text-slate-500 font-medium leading-relaxed max-w-xl">
+                            A collaborative space where teams audit GitHub repositories in real-time, share insights, and enforce quality standards across the organization.
+                        </p>
                     </div>
-                    <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-[#1A1A1A]">
-                        Collaborate on Code Quality
-                    </h1>
-                    <p className="text-muted-foreground text-base">
-                        Create shared spaces for your organization to build a library of architectural reports and enforce quality standards across all repositories.
-                    </p>
+
+                    {/* Join Team Card */}
+                    <div className="w-full md:w-96 bg-white border border-slate-200 rounded-3xl p-8 shadow-2xl shadow-slate-200/50 space-y-6">
+                        <div className="space-y-2">
+                            <h3 className="font-bold text-xl text-slate-900">Join a Team</h3>
+                            <p className="text-sm text-slate-400">Paste your invite code to enter a shared workspace.</p>
+                        </div>
+                        <form onSubmit={handleJoinTeam} className="space-y-4">
+                            <Input 
+                                placeholder="CBC-XXXX-XXXX" 
+                                className="h-12 bg-slate-50 border-slate-200 rounded-xl font-mono uppercase text-center tracking-widest"
+                                value={inviteCode}
+                                onChange={e => setInviteCode(e.target.value)}
+                                required
+                            />
+                            <Button type="submit" disabled={isJoining} className="w-full h-12 rounded-xl bg-slate-900 font-bold hover:bg-black transition-all">
+                                {isJoining ? <Loader2 className="w-5 h-5 animate-spin" /> : "Join Workspace"}
+                            </Button>
+                        </form>
+                    </div>
                 </div>
 
-                <div className="grid lg:grid-cols-3 gap-8">
-                    {/* Left Column - Team List & Creation */}
-                    <div className="lg:col-span-2 space-y-8">
-                        <div className="bg-white border border-border/50 rounded-2xl p-6 shadow-sm">
-                            <h2 className="text-lg font-bold flex items-center gap-2 mb-6">
-                                <BuildingIcon className="w-5 h-5 text-muted-foreground" /> Your Teams
-                            </h2>
-                            
-                            {loading ? (
-                                <div className="flex justify-center py-12">
-                                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                                </div>
-                            ) : teams.length === 0 ? (
-                                <div className="text-center py-8 bg-secondary/10 rounded-xl border border-dashed border-border mb-6">
-                                    <Users className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-                                    <h3 className="text-sm font-bold">No teams yet</h3>
-                                    <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">Create a team to start sharing reports and collaborating.</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-4 mb-8">
-                                    {teams.map((t, i) => (
-                                        <div key={i} className="border border-border/50 rounded-xl p-5 hover:border-primary/20 transition-all flex flex-col sm:flex-row gap-4 justify-between sm:items-center">
-                                            <div>
-                                                <div className="flex items-center gap-3">
-                                                    <h3 className="font-bold text-lg">{t.teamName}</h3>
-                                                    {t.role === 'admin' && (
-                                                        <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] py-0">Admin</Badge>
-                                                    )}
-                                                </div>
-                                                <p className="text-sm text-muted-foreground mt-1">
-                                                    Team Workspace • {t.role === 'admin' ? "You manage this team" : "You are a member"}
-                                                </p>
-                                            </div>
-
-                                            <div className="flex flex-col gap-2 min-w-[240px]">
-                                                {t.role === 'admin' && (
-                                                    <form onSubmit={(e) => handleInvite(e, t.teamId)} className="flex gap-2">
-                                                        <Input 
-                                                            placeholder="colleague@company.com" 
-                                                            className="h-8 text-xs" 
-                                                            value={inviteEmail}
-                                                            onChange={e => setInviteEmail(e.target.value)}
-                                                            required
-                                                        />
-                                                        <Button size="sm" type="submit" disabled={isInviting === t.teamId} className="h-8 shrink-0">
-                                                            {isInviting === t.teamId ? <Loader2 className="w-3 h-3 animate-spin"/> : "Invite"}
-                                                        </Button>
-                                                    </form>
-                                                )}
-                                                <Button variant="outline" size="sm" className="w-full justify-between" asChild>
-                                                    <Link href={`/team/${t.teamId}`}>
-                                                        View Shared Reports <ArrowRight className="w-3.5 h-3.5" />
-                                                    </Link>
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            {/* Create Team Form */}
-                            <div className="pt-6 border-t border-border/40">
-                                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Create New Team</h3>
-                                <form onSubmit={handleCreateTeam} className="flex gap-3">
-                                    <Input 
-                                        placeholder="Engineering Team, Startup Inc..." 
-                                        className="h-10"
-                                        value={newTeamName}
-                                        onChange={(e) => setNewTeamName(e.target.value)}
-                                        required
-                                    />
-                                    <Button type="submit" disabled={isCreating} className="h-10 shrink-0 font-bold bg-[#1A1A1A]">
-                                        {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4 mr-1" /> Create</>}
-                                    </Button>
-                                </form>
-                            </div>
-                        </div>
+                {/* Team Grid */}
+                <div className="space-y-8">
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-6">
+                        <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
+                            <BuildingIcon className="w-6 h-6 text-slate-400" /> Your Workspaces
+                        </h2>
+                        <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">{teams.length} Active</span>
                     </div>
 
-                    {/* Right Column - Info */}
-                    <div className="space-y-4">
-                        <div className="bg-gradient-to-br from-[#1A1A1A] to-slate-800 rounded-2xl p-6 text-white shadow-xl">
-                            <h3 className="text-lg font-bold flex items-center gap-2 mb-4">
-                                <ShieldCheck className="w-5 h-5 text-primary" /> Enterprise Grade
-                            </h3>
-                            <ul className="space-y-4 text-sm text-slate-300">
-                                <li className="flex gap-3">
-                                    <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center shrink-0 mt-0.5">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                                    </div>
-                                    <p><strong className="text-white block">Shared Library</strong> All reports generated by members are pooled.</p>
-                                </li>
-                                <li className="flex gap-3">
-                                    <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center shrink-0 mt-0.5">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                                    </div>
-                                    <p><strong className="text-white block">Access Control</strong> Admins manage invites and enforce security.</p>
-                                </li>
-                            </ul>
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {/* New Team Card */}
+                        <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-8 hover:border-[#FF7D29]/50 transition-all group flex flex-col justify-center items-center text-center space-y-6">
+                            <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-[#FF7D29]/10 group-hover:text-[#FF7D29] transition-all">
+                                <Plus className="w-8 h-8" />
+                            </div>
+                            <div className="space-y-2">
+                                <h3 className="font-bold text-lg text-slate-900">New Workspace</h3>
+                                <p className="text-xs text-slate-400 max-w-[200px]">Set up a shared area for your engineers.</p>
+                            </div>
+                            <form onSubmit={handleCreateTeam} className="w-full flex gap-2">
+                                <Input 
+                                    className="h-10 border-slate-200 rounded-xl"
+                                    placeholder="Team Name"
+                                    value={newTeamName}
+                                    onChange={e => setNewTeamName(e.target.value)}
+                                />
+                                <Button size="sm" type="submit" disabled={isCreating} className="rounded-xl bg-slate-900 px-4">
+                                    {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : "Go"}
+                                </Button>
+                            </form>
                         </div>
+
+                        {loading ? (
+                            Array(2).fill(0).map((_, i) => (
+                                <div key={i} className="h-64 bg-slate-100 animate-pulse rounded-3xl" />
+                            ))
+                        ) : teams.map((t, i) => (
+                            <Link 
+                                key={i} 
+                                href={`/team/${t.teamId}`}
+                                className="bg-white border border-slate-200 rounded-3xl p-8 hover:shadow-xl hover:shadow-slate-200/50 hover:-translate-y-1 transition-all space-y-6"
+                            >
+                                <div className="flex justify-between items-start">
+                                    <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center text-white text-xl font-black">
+                                        {t.teamName[0].toUpperCase()}
+                                    </div>
+                                    <Badge variant="outline" className="rounded-full px-3 py-0.5 font-bold uppercase text-[10px] tracking-widest border-slate-200 text-slate-400">
+                                        {t.role}
+                                    </Badge>
+                                </div>
+                                
+                                <div className="space-y-1">
+                                    <h3 className="font-bold text-xl text-slate-900">{t.teamName}</h3>
+                                    <p className="text-sm text-slate-500 font-medium">Shared Library & Collaborative Audits</p>
+                                </div>
+
+                                <div className="pt-4 flex items-center justify-between border-t border-slate-50">
+                                    <div className="flex -space-x-2">
+                                        {[1,2,3].map(j => (
+                                            <div key={j} className="w-8 h-8 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-400">
+                                                <User className="w-4 h-4" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-black" />
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Features Grid */}
+                <div className="grid md:grid-cols-3 gap-8 pt-8">
+                    <div className="space-y-4 p-6 rounded-2xl bg-white border border-slate-100">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                            <Mail className="w-5 h-5" />
+                        </div>
+                        <h4 className="font-bold text-slate-900">Instant Collaboration</h4>
+                        <p className="text-sm text-slate-500 leading-relaxed font-medium">Real-time comments and file review statuses sync across every developer's screen instantly.</p>
+                    </div>
+                    <div className="space-y-4 p-6 rounded-2xl bg-white border border-slate-100">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                            <ShieldCheck className="w-5 h-5" />
+                        </div>
+                        <h4 className="font-bold text-slate-900">Shared Compliance</h4>
+                        <p className="text-sm text-slate-500 leading-relaxed font-medium">Maintain a single source of truth for repository health and architectural standards.</p>
+                    </div>
+                    <div className="space-y-4 p-6 rounded-2xl bg-white border border-slate-100">
+                        <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600">
+                            <Users className="w-5 h-5" />
+                        </div>
+                        <h4 className="font-bold text-slate-900">Invite Anywhere</h4>
+                        <p className="text-sm text-slate-500 leading-relaxed font-medium">Send a unique code to your colleagues. No complex permission management required.</p>
                     </div>
                 </div>
 

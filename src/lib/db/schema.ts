@@ -24,7 +24,9 @@ export const analyses = sqliteTable("analyses", {
 export const teams = sqliteTable("teams", {
     id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
     name: text("name").notNull(),
+    invite_code: text("invite_code").unique().notNull(),
     owner_id: text("owner_id").notNull(), // Appwrite UserId
+    plan: text("plan", { enum: ["free", "pro"] }).default("free"),
     created_at: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -69,7 +71,8 @@ export const file_reviews = sqliteTable("file_reviews", {
     team_id: text("team_id").notNull(),
     file_path: text("file_path").notNull(),
     reviewer_id: text("reviewer_id").notNull(),
-    status: text("status", { enum: ["reviewed", "unreviewed"] }).default("reviewed"),
+    status: text("status", { enum: ["pending", "reviewed", "flagged"] }).default("pending"),
+    note: text("note"),
     created_at: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 }, (table) => ({
     analysisTeamIdx: index("file_reviews_analysis_team_idx").on(table.analysis_id, table.team_id),
