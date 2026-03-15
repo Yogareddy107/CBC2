@@ -24,11 +24,13 @@ export default async function HistoryPage() {
         .orderBy(desc(analysesTable.created_at));
 
     const analyses = rawAnalyses.map((a) => ({
-        ...a,
+        id: a.id,
+        repo_url: a.repo_url,
+        slug: a.slug,
         status: a.status || 'pending',
         created_at: a.created_at || new Date().toISOString(),
+        summary: a.summary
     }));
 
     return <HistoryPageClient analyses={analyses} />;
 }
-

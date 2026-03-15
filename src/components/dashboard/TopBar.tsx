@@ -39,7 +39,7 @@ export function TopBar({ user, onHamburger }: TopBarProps) {
 
 
     return (
-        <header className="h-14 border-b border-[#1A1A1A]/5 bg-[#FFFDF6]/80 backdrop-blur-md sticky top-0 z-40 flex items-center justify-between px-6 gap-6">
+        <header className="h-16 border-b border-slate-100 bg-white/80 backdrop-blur-md sticky top-0 z-40 flex items-center justify-between px-6 gap-6">
             <div className="flex items-center gap-4">
                 {/* hamburger for mobile */}
                 {onHamburger && (

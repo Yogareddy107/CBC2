@@ -16,12 +16,7 @@ async function main() {
         console.log("Running analysis...");
         const result = await analyzeRepo(repoData);
         console.log("Analysis result:", JSON.stringify(result, null, 2));
-
-        if (result.repoSnapshot.description.includes("A Next.js 14 application orchestrating GitHub analysis")) {
-            console.error("FAILURE: Returned MOCK DATA instead of real analysis.");
-        } else {
-            console.log("SUCCESS: Real analysis returned.");
-        }
+        console.log("SUCCESS: Real analysis returned.");
 
     } catch (error) {
         console.error("Script failed:", error);

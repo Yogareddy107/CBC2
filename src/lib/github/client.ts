@@ -56,3 +56,46 @@ export async function getRepoData(owner: string, repo: string) {
         contributing: contributing.slice(0, 5000)
     };
 }
+
+export async function getImpactRepoData(owner: string, repo: string, targetPath: string) {
+    const token = process.env.GITHUB_TOKEN;
+    const headers: HeadersInit = {
+        "Accept": "application/vnd.github.v3+json",
+    };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    async function fetchFileContent(path: string) {
+        try {
+            const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, { headers });
+            if (res.ok) {
+                const json = await res.json();
+                if (json.content) return Buffer.from(json.content, 'base64').toString('utf-8');
+            }
+        } catch (e) {
+            console.warn(`Failed to fetch ${path}`, e);
+        }
+        return "";
+    }
+
+    const [repoRes, treeRes, targetContent, packageJson] = await Promise.all([
+        fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers }).then(r => r.json()),
+        fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/main?recursive=1`, { headers }).then(r => r.json()).catch(() => ({ tree: [] })), // fallback if main doesn't exist, though idealized
+        fetchFileContent(targetPath),
+        fetchFileContent('package.json')
+    ]);
+
+    // Re-fetch tree with default_branch if main failed
+    let tree = treeRes.tree;
+    if (!tree || tree.length === 0) {
+        const branchTreeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${repoRes.default_branch}?recursive=1`, { headers }).then(r => r.json());
+        tree = branchTreeRes.tree || [];
+    }
+
+    return {
+        name: repoRes.name,
+        targetFilePath: targetPath,
+        targetFileContent: targetContent.slice(0, 15000), // Enforce limit
+        tree: (tree as { path: string }[]).map((t) => t.path).slice(0, 1000),
+        packageJson: packageJson
+    };
+}

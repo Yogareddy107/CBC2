@@ -54,7 +54,7 @@ export async function deleteAccountAndData() {
         await db.delete(analyses).where(eq(analyses.user_id, user.$id));
         await db.delete(subscriptions).where(eq(subscriptions.user_id, user.$id));
 
-        // Use admin client to delete the user account
+        // Then delete the Appwrite user account using Admin Client
         const { users } = await createAdminClient();
         await users.delete(user.$id);
 

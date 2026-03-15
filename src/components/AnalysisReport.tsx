@@ -1,25 +1,88 @@
 'use client';
 
-import { AnalysisResult } from '@/lib/llm/client';
+import { useState, useEffect } from 'react';
+import type { AnalysisResult } from '@/lib/llm/client';
 import {
-    Activity, ShieldCheck, Zap, Server, Layout, GitBranch,
+    Activity, ShieldCheck, Zap, Layout, GitBranch,
     Play, AlertTriangle, CheckCircle2, XCircle,
-    TrendingUp, Box, Lock, Users,
-    Thermometer, Component, Globe, Construction, BookOpen,
-    Network, ArrowRight
+    Thermometer, Component, ArrowRight, BookOpen, Globe, Construction,
+    MessageSquare, CheckSquare, CheckCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { CommentSystem } from './CommentSystem';
+import { markFileAsReviewed } from '@/app/team/actions';
 
-// --- Helper Components ---
+// --- Shared Elements ---
+function ReviewToggle({ 
+    analysisId, 
+    teamId, 
+    filePath, 
+    isReviewed: initialReviewed 
+}: { 
+    analysisId: string, 
+    teamId?: string, 
+    filePath: string, 
+    isReviewed?: boolean 
+}) {
+    const [reviewed, setReviewed] = useState(initialReviewed);
+    const [loading, setLoading] = useState(false);
 
-function SectionHeader({ title, icon: Icon, className }: { title: string, icon?: React.ElementType, className?: string }) {
+    if (!teamId) return null;
+
+    const handleToggle = async () => {
+        setLoading(true);
+        const res = await markFileAsReviewed(analysisId, teamId, filePath);
+        if (res.success) setReviewed(true);
+        setLoading(false);
+    };
+
     return (
-        <div className={cn("flex items-center gap-3 mb-6", className)}>
-            <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                {Icon && <Icon className="w-5 h-5" />}
+        <button 
+            onClick={handleToggle}
+            disabled={reviewed || loading}
+            className={cn(
+                "flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider transition-all",
+                reviewed 
+                    ? "bg-green-500/10 text-green-600 border border-green-500/20" 
+                    : "bg-secondary text-muted-foreground hover:bg-secondary/80 border border-transparent"
+            )}
+        >
+            {reviewed ? <CheckCircle className="w-3 h-3" /> : <CheckSquare className="w-3 h-3" />}
+            {reviewed ? 'Reviewed' : 'Mark Reviewed'}
+        </button>
+    );
+}
+function SectionHeader({ 
+    title, 
+    icon: Icon, 
+    className,
+    onCommentClick,
+    commentCount = 0
+}: { 
+    title: string, 
+    icon?: React.ElementType, 
+    className?: string,
+    onCommentClick?: () => void,
+    commentCount?: number
+}) {
+    return (
+        <div className={cn("flex items-center justify-between mb-8 mt-16 pb-4 border-b border-border/20", className)}>
+            <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-lg">
+                    {Icon && <Icon className="w-5 h-5" />}
+                </div>
+                <h2 className="text-2xl font-black tracking-tighter text-[#1A1A1A]">{title}</h2>
             </div>
-            <h2 className="text-xl font-bold tracking-tight text-foreground">{title}</h2>
+            {onCommentClick && (
+                <button 
+                    onClick={onCommentClick}
+                    className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-secondary/50 hover:bg-primary hover:text-white transition-all group shadow-sm hover:shadow-lg hover:shadow-primary/20"
+                >
+                    <MessageSquare className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                    <span className="text-xs font-black uppercase tracking-widest">{commentCount > 0 ? commentCount : 'Discuss'}</span>
+                </button>
+            )}
         </div>
     );
 }
@@ -40,657 +103,563 @@ function Card({ children, className, variant = "default" }: { children: React.Re
     );
 }
 
-function ScoreBadge({ score }: { score: number }) {
-    const color = score >= 8 ? "bg-green-500 text-white" : score >= 5 ? "bg-amber-500 text-white" : "bg-red-500 text-white";
-    return (
-        <div className={cn("w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold font-mono shadow-md", color)}>
-            {score}
-        </div>
-    );
-}
-
-function TrafficLight({ level }: { level: string }) {
-    let color = "bg-gray-200";
-    // Bad levels
-    if (["Low", "Weak", "Experimental", "Poor", "Low Activity", "Stagnant", "Deprecated"].includes(level)) color = "bg-red-500";
-    // Medium levels
-    if (["Moderate", "Medium", "Early-stage", "Average", "Low Activity"].includes(level)) color = "bg-amber-500";
-    // Good levels
-    if (["High", "Strong", "Stable", "Production-Hardened", "Excellent", "Actively Maintained", "Production-Grade", "Growing"].includes(level)) color = "bg-green-500";
-
-    // Invert logic for Risks/Complexity (Low is Good)
-    if (["Low", "Small"].includes(level)) color = "bg-green-500";
-    if (["High", "Massive"].includes(level)) color = "bg-red-500";
-
-    return <div className={cn("w-3 h-3 rounded-full", color)} title={level} />;
-}
-
-function ContextTooltip({ text }: { text: string }) {
-    if (!text) return null;
-    return (
-        <div className="absolute inset-0 bg-popover/95 backdrop-blur-sm p-4 flex flex-col justify-center items-center text-center opacity-0 hover:opacity-100 transition-opacity z-10 cursor-help">
-            <p className="text-sm font-medium text-popover-foreground">{text}</p>
-        </div>
-    );
-}
-
-
-// --- Sections ---
-
-function ReportHeader({ data, repoUrl }: { data: AnalysisResult, repoUrl: string }) {
-    const { repoSnapshot } = data;
-
+// --- 1. TL;DR ---
+function TLDRSection({ data, repoUrl }: { data: AnalysisResult['tldr'], repoUrl: string }) {
     // Parse owner/repo from URL
     let owner = "Unknown";
     let repoName = "Repository";
     try {
         const url = new URL(repoUrl);
         const parts = url.pathname.split('/').filter(Boolean);
-        if (parts.length >= 2) {
-            owner = parts[0];
-            repoName = parts[1];
-        }
+        if (parts.length >= 2) { owner = parts[0]; repoName = parts[1]; }
     } catch {
         if (repoUrl.includes('/')) {
             const parts = repoUrl.split('/');
-            if (parts.length >= 2) {
-                owner = parts[parts.length - 2];
-                repoName = parts[parts.length - 1];
-            }
+            if (parts.length >= 2) { owner = parts[parts.length - 2]; repoName = parts[parts.length - 1]; }
         }
     }
 
     return (
-        <div className="mb-12 relative overflow-hidden rounded-2xl bg-[#F4F4F5] border-l-4 border-primary p-8 shadow-sm">
-            <div className="flex flex-col gap-4 relative z-10">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground font-mono">
-                    <span className="font-bold text-foreground">{owner}/{repoName}</span>
-                    <span>•</span>
-                    <span>{repoSnapshot.primaryStack}</span>
+        <div className="mb-10 relative overflow-hidden rounded-[2.5rem] bg-[#0F172A] border border-white/10 p-10 shadow-2xl text-white">
+            {/* Background Decorative Elements */}
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/20 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/4 pointer-events-none opacity-50" />
+            <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-blue-500/10 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/4 pointer-events-none opacity-30" />
+            
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+                <div className="space-y-4 flex-1">
+                    <div className="flex items-center gap-3">
+                        <div className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
+                            Executive Summary
+                        </div>
+                        <div className="h-px w-12 bg-white/10" />
+                        <span className="text-xs font-mono text-slate-400">{owner}/{repoName}</span>
+                    </div>
+                    
+                    <h1 className="text-4xl md:text-5xl font-black tracking-tighter leading-none bg-gradient-to-r from-white via-white to-slate-400 bg-clip-text text-transparent">
+                        Project Analysis
+                    </h1>
+
+                    <div className="pt-2">
+                        <p className="text-lg text-slate-300 font-medium leading-relaxed max-w-2xl italic border-l-2 border-primary/40 pl-6 py-2">
+                            "{data.architecture}"
+                        </p>
+                    </div>
                 </div>
 
-                <p className="text-lg leading-relaxed text-foreground/80 max-w-3xl font-medium">
-                    {repoSnapshot.description}
-                </p>
+                <div className="flex flex-col gap-4 w-full md:w-80">
+                    <div className="group p-5 bg-white/5 backdrop-blur-md rounded-3xl border border-white/10 hover:border-primary/40 transition-all hover:translate-y-[-2px]">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="w-8 h-8 rounded-xl bg-red-500/20 flex items-center justify-center">
+                                <AlertTriangle className="w-4 h-4 text-red-400" />
+                            </div>
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-red-400/80">Critical Risk</span>
+                        </div>
+                        <p className="text-sm font-bold text-white mb-1 truncate">{data.biggestRisk.file}</p>
+                        <p className="text-[11px] text-slate-400 line-clamp-2 leading-snug">{data.biggestRisk.reason}</p>
+                    </div>
 
-                <div className="flex flex-wrap gap-3 mt-2">
-                    <Badge variant="outline" className="bg-white/50">{repoSnapshot.architectureType} Arch</Badge>
-                    <Badge variant="outline" className="bg-white/50">{repoSnapshot.codebaseSize} Size</Badge>
-                    <Badge className={cn(
-                        "border-none",
-                        repoSnapshot.activitySignal?.includes("Active") ? "bg-green-500/10 text-green-700" : "bg-amber-500/10 text-amber-700"
-                    )}>
-                        {repoSnapshot.activitySignal}
-                    </Badge>
+                    <div className="group p-5 bg-white/5 backdrop-blur-md rounded-3xl border border-white/10 hover:border-green-400/40 transition-all hover:translate-y-[-2px]">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="w-8 h-8 rounded-xl bg-green-500/20 flex items-center justify-center">
+                                <Zap className="w-4 h-4 text-green-400" />
+                            </div>
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-green-400/80">Entry Point</span>
+                        </div>
+                        <p className="text-sm font-bold text-white mb-1 truncate">{data.startHere}</p>
+                        <p className="text-[11px] text-slate-400">Recommended starting module for audit.</p>
+                    </div>
                 </div>
             </div>
-            <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-gradient-to-bl from-primary/5 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
         </div>
     );
 }
 
-function MaturityScale({ stage }: { stage: string }) {
-    const stages = ['Prototype', 'Structured Early-Stage', 'Growing', 'Production-Grade'];
-    const currentIndex = stages.indexOf(stage);
+// --- 2. Engineering Maturity Index ---
+function MaturityScale({ data, onComment, analysisId, teamId }: { data: AnalysisResult['maturity'], onComment: () => void, analysisId?: string, teamId?: string }) {
+    const stages = ['Prototype', 'Structured early-stage', 'Growing', 'Production-Grade'];
+    const currentIndex = stages.indexOf(data.rating);
 
     return (
-        <div className="mb-8 p-8 bg-secondary/10 rounded-xl border border-border/50 overflow-hidden">
-            <h3 className="text-xs font-bold uppercase text-muted-foreground mb-8 tracking-wider">Engineering Maturity Index</h3>
-            <div className="relative mx-4">
-                {/* Connecting Line */}
-                <div className="absolute top-2.5 left-0 right-0 h-0.5 bg-border -z-0" />
-                <div className="absolute top-2.5 left-0 h-0.5 bg-primary -z-0 transition-all duration-1000"
-                    style={{ width: `${(currentIndex / (stages.length - 1)) * 100}%` }} />
-
-                <div className="flex justify-between relative z-10">
-                    {stages.map((s, i) => {
-                        const active = i <= currentIndex;
-                        const current = i === currentIndex;
-                        return (
-                            <div key={i} className="relative flex flex-col items-center group">
-                                <div className={cn(
-                                    "w-5 h-5 rounded-full border-4 transition-all duration-500 z-10 box-content bg-background",
-                                    active ? "border-primary" : "border-muted-foreground",
-                                    current && "ring-4 ring-primary/20 scale-110"
-                                )} />
-                                <span className={cn(
-                                    "absolute top-8 text-[10px] sm:text-xs font-bold uppercase w-32 text-center transition-opacity duration-300",
-                                    active ? "text-foreground" : "text-muted-foreground",
-                                    current ? "text-primary scale-105" : "",
-                                    i === 0 ? "left-0 text-left origin-left" :
-                                        i === stages.length - 1 ? "right-0 text-right origin-right" :
-                                            "left-1/2 -translate-x-1/2"
-                                )}>
-                                    {s}
-                                </span>
-                            </div>
-                        )
-                    })}
-                </div>
-            </div>
-            {/* Spacer for labels */}
-            <div className="h-6" />
-        </div>
-    );
-}
-
-function ExecutiveVerdict({ data }: { data: AnalysisResult['executiveVerdict'] }) {
-    return (
-        <section className="mb-16">
-            <SectionHeader title="Executive Technical Verdict" icon={Activity} />
-
-            <MaturityScale stage={data.maturityStage} />
-
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <Card className="col-span-1 md:col-span-2 flex items-center justify-between bg-primary/5 border-primary/20 group">
-                    <ContextTooltip text={data.maintenanceContext} />
-                    <div>
-                        <h3 className="text-sm font-bold uppercase tracking-wider text-primary mb-1">Maintainability Score</h3>
-                        <p className="text-xs text-muted-foreground">1-10 Rating • Hover for Context</p>
-                    </div>
-                    <ScoreBadge score={data.maintainabilityScore} />
-                </Card>
-
-                <Card className="flex flex-col justify-center gap-2">
-                    <span className="text-xs font-bold text-muted-foreground uppercase">Modularity</span>
-                    <div className="flex items-center gap-2">
-                        <TrafficLight level={data.modularityStrength} />
-                        <span className="font-semibold">{data.modularityStrength}</span>
-                    </div>
-                </Card>
-
-                <Card className="flex flex-col justify-center gap-2">
-                    <span className="text-xs font-bold text-muted-foreground uppercase">Production Ready</span>
-                    <div className="flex items-center gap-2">
-                        <TrafficLight level={data.productionReadiness} />
-                        <span className="font-semibold text-sm">{data.productionReadiness}</span>
-                    </div>
-                </Card>
-
-                <div className="md:col-span-4 grid md:grid-cols-3 gap-6">
-                    <Card className="flex items-center gap-4 group">
-                        <ContextTooltip text={data.couplingContext} />
-                        <div className="p-2 bg-secondary rounded-lg"><GitBranch className="w-5 h-5 text-muted-foreground" /></div>
-                        <div>
-                            <p className="text-xs text-muted-foreground uppercase font-bold">Coupling Risk</p>
-                            <p className="font-semibold">{data.couplingRisk}</p>
-                        </div>
-                    </Card>
-                    <Card className="flex items-center gap-4 group">
-                        <ContextTooltip text={data.refactorContext} />
-                        <div className="p-2 bg-secondary rounded-lg"><Construction className="w-5 h-5 text-muted-foreground" /></div>
-                        <div>
-                            <p className="text-xs text-muted-foreground uppercase font-bold">Refactor Safety</p>
-                            <p className="font-semibold">{data.refactorSafety}</p>
-                        </div>
-                    </Card>
-                    <Card className={cn(
-                        "flex items-center gap-4 border-l-4",
-                        data.adoptionRecommendation?.includes("Safe") ? "border-l-green-500 bg-green-50" : "border-l-amber-500 bg-amber-50"
-                    )}>
-                        <div>
-                            <p className="text-xs text-foreground/60 uppercase font-bold">Recommendation</p>
-                            <p className="font-bold text-foreground">{data.adoptionRecommendation}</p>
-                        </div>
-                    </Card>
-                </div>
-            </div>
-        </section>
-    );
-}
-
-function ArchitecturalHealth({ data }: { data: AnalysisResult['architecturalHealth'] }) {
-    return (
-        <section className="mb-16">
-            <SectionHeader title="Architectural Health Analysis" icon={Component} />
-            <div className="mb-6 p-4 bg-blue-50/50 border border-blue-100 rounded-xl">
-                <h4 className="flex items-center gap-2 text-sm font-bold text-blue-800 mb-2"><Layout className="w-4 h-4" /> Architecture Identity</h4>
-                <p className="text-lg font-medium text-foreground">{data.architectureIdentity}</p>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-6">
-                <Card>
-                    <h4 className="font-bold mb-2 flex items-center gap-2">
-                        <Layout className="w-4 h-4 text-blue-500" /> Structure Pattern
-                    </h4>
-                    <p className="text-sm text-foreground/80 leading-relaxed">{data.pattern}</p>
-                </Card>
-                <Card>
-                    <h4 className="font-bold mb-2 flex items-center gap-2">
-                        <ShieldCheck className="w-4 h-4 text-green-500" /> Boundary Strength
-                    </h4>
-                    <p className="text-sm text-foreground/80 leading-relaxed">{data.boundaryStrength}</p>
-                </Card>
-                <Card>
-                    <h4 className="font-bold mb-2 flex items-center gap-2">
-                        <Box className="w-4 h-4 text-purple-500" /> Cohesion
-                    </h4>
-                    <p className="text-sm text-foreground/80 leading-relaxed">{data.cohesion}</p>
-                </Card>
-                <Card>
-                    <h4 className="font-bold mb-2 flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-orange-500" /> Consistency
-                    </h4>
-                    <p className="text-sm text-foreground/80 leading-relaxed">{data.consistency}</p>
-                </Card>
-            </div>
-        </section>
-    );
-}
-
-function DependencyAnalysis({ data }: { data: AnalysisResult['dependencyAnalysis'] }) {
-    if (!data) return null; // Handle backward compatibility
-    return (
-        <section className="mb-16">
-            <SectionHeader title="Dependency Gravity & Flow" icon={Network} />
-            <div className="grid md:grid-cols-2 gap-6">
-                <Card className="border-l-4 border-l-purple-500">
-                    <h4 className="font-bold mb-3 flex items-center gap-2 text-purple-700">
-                        <Box className="w-4 h-4" /> Central Gravity Nodes
-                    </h4>
-                    <p className="text-xs text-muted-foreground mb-3">Imporant files that everyone depends on.</p>
-                    <ul className="space-y-2">
-                        {data.centralNodes?.map((node, i) => (
-                            <li key={i} className="text-sm font-mono bg-secondary/30 px-2 py-1 rounded break-all border border-border/50">{node}</li>
-                        ))}
-                    </ul>
-                </Card>
-                <Card className="border-l-4 border-l-blue-500">
-                    <h4 className="font-bold mb-3 flex items-center gap-2 text-blue-700">
-                        <ArrowRight className="w-4 h-4" /> Top Consumers
-                    </h4>
-                    <p className="text-xs text-muted-foreground mt-2">Each circle represents a file. The size shows complexity, lines show how they&apos;re coupled.</p>
-                    <ul className="space-y-2">
-                        {data.topConsumers?.map((node, i) => (
-                            <li key={i} className="text-sm font-mono bg-secondary/30 px-2 py-1 rounded break-all border border-border/50">{node}</li>
-                        ))}
-                    </ul>
-                </Card>
-            </div>
-        </section>
-    );
-}
-
-
-function BlastRadius({ data }: { data: AnalysisResult['blastRadius'] }) {
-    return (
-        <section className="mb-16">
-            <SectionHeader title="Change Blast Radius" icon={AlertTriangle} />
-            <div className="grid md:grid-cols-2 gap-6 mb-6">
-                <Card variant="danger">
-                    <h4 className="font-bold text-red-700 mb-3 flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4" /> High Impact Areas
-                    </h4>
-                    <ul className="space-y-2">
-                        {data.highBlastRadiusAreas?.map((area, i) => (
-                            <li key={i} className="text-sm text-foreground/80 flex items-start gap-2">
-                                <span className="text-red-500 mt-1 flex-shrink-0 leading-none">•</span>
-                                <span className="flex-1">{area}</span>
-                            </li>
-                        ))}
-                    </ul>
-                </Card>
-                <Card variant="success">
-                    <h4 className="font-bold text-green-700 mb-3 flex items-center gap-2">
-                        <ShieldCheck className="w-4 h-4" /> Safe Zones
-                    </h4>
-                    <ul className="space-y-2">
-                        {data.safeZones?.map((area, i) => (
-                            <li key={i} className="text-sm text-foreground/80 flex items-start gap-2">
-                                <span className="text-green-500 mt-1 flex-shrink-0 leading-none">•</span>
-                                <span className="flex-1">{area}</span>
-                            </li>
-                        ))}
-                    </ul>
-                </Card>
-            </div>
-            <div className="p-4 bg-secondary/20 rounded-xl border border-border/50">
-                <p className="text-sm text-center italic text-muted-foreground">
-                    <span className="font-bold not-italic text-foreground">Refactor Confidence:</span> {data.refactorConfidence}
-                </p>
-            </div>
-        </section>
-    );
-}
-
-function Maintainability({ data }: { data: AnalysisResult['maintainability'] }) {
-    return (
-        <section className="mb-16">
-            <SectionHeader title="Maintainability & Debt Sensors" icon={Thermometer} />
-            <div className="grid gap-4">
-                <div className="grid md:grid-cols-3 gap-4">
-                    <Card className="bg-secondary/10">
-                        <p className="text-xs uppercase text-muted-foreground font-bold mb-1">Abstraction</p>
-                        <p className="text-sm font-medium">{data.abstractionQuality}</p>
-                    </Card>
-                    <Card className="bg-secondary/10">
-                        <p className="text-xs uppercase text-muted-foreground font-bold mb-1">Dependencies</p>
-                        <p className="text-sm font-medium">{data.dependencySprawl}</p>
-                    </Card>
-                    <Card className="bg-secondary/10">
-                        <p className="text-xs uppercase text-muted-foreground font-bold mb-1">Centralization</p>
-                        <p className="text-sm font-medium">{data.centralization}</p>
-                    </Card>
-                </div>
-
-                <div className="mt-2">
-                    <h4 className="text-sm font-bold text-orange-600 uppercase tracking-wide mb-3">Debt Indicators</h4>
-                    <div className="space-y-2">
-                        {data.technicalDebtIndicators?.map((debt, i) => (
-                            <div key={i} className="flex items-start gap-2 text-sm text-foreground/80">
-                                <Zap className="w-3 h-3 text-orange-400 mt-1 flex-shrink-0" />
-                                <span className="flex-1">{debt}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        </section>
-    );
-}
-
-function ExecutionFlow({ data }: { data: AnalysisResult['executionFlow'] }) {
-    return (
-        <section className="mb-16">
-            <SectionHeader title="Execution Flow & Boundaries" icon={Play} />
-            <div className="relative border-l-2 border-border/60 ml-3 pl-8 space-y-8 py-2">
-                <div className="relative">
-                    <span className="absolute -left-[41px] top-1 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold ring-4 ring-background">1</span>
-                    <h4 className="font-bold text-sm text-foreground mb-1">Entry Point</h4>
-                    <code className="text-xs bg-secondary px-2 py-1 rounded block w-fit mb-2">{data.entryPoint}</code>
-                </div>
-
-                <div className="relative">
-                    <span className="absolute -left-[41px] top-1 w-6 h-6 rounded-full bg-secondary text-muted-foreground border flex items-center justify-center text-xs font-bold ring-4 ring-background">2</span>
-                    <h4 className="font-bold text-sm text-foreground mb-1">Core Flow</h4>
-                    <p className="text-sm text-muted-foreground">{data.corePath}</p>
-                </div>
-
-                <div className="relative">
-                    <span className="absolute -left-[41px] top-1 w-6 h-6 rounded-full bg-secondary text-muted-foreground border flex items-center justify-center text-xs font-bold ring-4 ring-background">3</span>
-                    <h4 className="font-bold text-sm text-foreground mb-1">State Mutation</h4>
-                    <p className="text-sm text-muted-foreground">{data.stateMutationPattern}</p>
-                </div>
-
-                <div className="relative">
-                    <span className="absolute -left-[41px] top-1 w-6 h-6 rounded-full bg-purple-500 text-white flex items-center justify-center text-xs font-bold ring-4 ring-background">4</span>
-                    <h4 className="font-bold text-sm text-foreground mb-1">API Boundary</h4>
-                    <p className="text-sm text-muted-foreground">{data.apiBoundary}</p>
-                </div>
-
-                <div className="relative">
-                    <span className="absolute -left-[41px] top-1 w-6 h-6 rounded-full bg-orange-500 text-white flex items-center justify-center text-xs font-bold ring-4 ring-background">!</span>
-                    <h4 className="font-bold text-sm text-foreground mb-1">Side Effects</h4>
-                    <p className="text-sm text-muted-foreground">{data.sideEffectZones}</p>
-                </div>
-            </div>
-        </section>
-    );
-}
-
-function TestingProfile({ data }: { data: AnalysisResult['testingProfile'] }) {
-    return (
-        <section className="mb-16">
-            <SectionHeader title="Test & Safety Profile" icon={Lock} />
-            <div className="grid md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                    <div>
-                        <span className="text-xs font-bold uppercase text-muted-foreground">Unit Coverage</span>
-                        <div className="mt-1 h-2 w-full bg-secondary rounded-full overflow-hidden">
-                            <div className="h-full bg-blue-500" style={{ width: data.unitCoverage?.includes('0%') ? '5%' : '50%' }} />
-                        </div>
-                        <p className="text-xs text-left mt-1 font-mono text-muted-foreground">{data.unitCoverage}</p>
-                    </div>
-
-                    <div className="flex items-start gap-4 py-2 border-b border-border/50">
-                        <span className="text-sm font-medium w-40">Integration Depth</span>
-                        <span className="text-sm text-muted-foreground flex-1">{data.integrationDepth}</span>
-                    </div>
-                    <div className="flex items-start gap-4 py-2 border-b border-border/50">
-                        <span className="text-sm font-medium w-40">E2E Presence</span>
-                        <span className="text-sm text-muted-foreground flex-1">{data.e2ePresence}</span>
-                    </div>
-                </div>
-
-                <Card className="bg-secondary/5 flex flex-col justify-center text-center">
-                    <p className="text-xs font-bold uppercase text-muted-foreground mb-2">Safety Rating</p>
-                    <div className="flex items-center justify-center gap-2">
-                        <TrafficLight level={data.refactorSafetyRating === 'High' ? 'Strong' : data.refactorSafetyRating === 'Moderate' ? 'Medium' : 'Weak'} />
-                        <span className="font-bold text-lg">{data.refactorSafetyRating}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2 px-4 italic">&quot;{data.mockingStrategy}&quot;</p>
-                </Card>
-            </div>
-        </section>
-    );
-}
-
-function Scalability({ data }: { data: AnalysisResult['scalability'] }) {
-    return (
-        <section className="mb-16">
-            <SectionHeader title="Operational & Scalability" icon={Server} />
-            <div className="grid grid-cols-2 gap-4">
-                <Card variant="outline">
-                    <p className="text-xs font-bold uppercase text-muted-foreground mb-1">Deployment</p>
-                    <p className="text-sm font-medium">{data.deploymentMaturity}</p>
-                </Card>
-                <Card variant="outline">
-                    <p className="text-xs font-bold uppercase text-muted-foreground mb-1">Config Hygiene</p>
-                    <p className="text-sm font-medium">{data.configHygiene}</p>
-                </Card>
-                <Card variant="outline">
-                    <p className="text-xs font-bold uppercase text-muted-foreground mb-1">Bottlenecks</p>
-                    <p className="text-sm font-medium text-amber-600">{data.scalingBottlenecks}</p>
-                </Card>
-                <Card variant="outline">
-                    <p className="text-xs font-bold uppercase text-muted-foreground mb-1">Caching</p>
-                    <p className="text-sm font-medium">{data.caching}</p>
-                </Card>
-            </div>
-        </section>
-    );
-}
-
-function Onboarding({ data }: { data: AnalysisResult['onboarding'] }) {
-    return (
-        <section className="mb-16">
-            <SectionHeader title="🚀 15-Minute Onboarding Path" icon={Users} />
-
-            {/* Core Domain Summary - Prominent Header */}
-            <Card variant="success" className="mb-6 border-l-4 border-l-green-500">
-                <div className="flex items-start gap-3">
-                    <div className="text-green-600 mt-1">
-                        <Globe className="w-5 h-5" />
-                    </div>
-                    <div>
-                        <h4 className="text-sm font-bold text-green-600 mb-2">🧠 Core Domain Summary</h4>
-                        <p className="text-sm text-foreground/90 leading-relaxed">{data.coreDomainSummary}</p>
-                    </div>
-                </div>
-            </Card>
-
-            {/* START HERE + THEN READ - Two Column Layout */}
-            <div className="grid md:grid-cols-2 gap-6 mb-6">
-                {/* START HERE */}
-                <Card className="border-l-4 border-l-blue-500">
-                    <div className="flex items-center gap-2 mb-3">
-                        <Play className="w-4 h-4 text-blue-600" />
-                        <h4 className="text-sm font-bold text-blue-600">🎯 START HERE</h4>
-                    </div>
-                    <ul className="space-y-2">
-                        {data.startHere?.map((file, i) => (
-                            <li key={i} className="flex items-start gap-2">
-                                <ArrowRight className="w-4 h-4 text-blue-500 mt-1 flex-shrink-0" />
-                                <span className="text-sm text-foreground/80 code bg-blue-50 dark:bg-blue-950/30 px-2 py-1 rounded flex-1">
-                                    {file}
-                                </span>
-                            </li>
-                        ))}
-                    </ul>
-                </Card>
-
-                {/* THEN READ */}
-                <Card className="border-l-4 border-l-purple-500">
-                    <div className="flex items-center gap-2 mb-3">
-                        <BookOpen className="w-4 h-4 text-purple-600" />
-                        <h4 className="text-sm font-bold text-purple-600">📖 THEN READ</h4>
-                    </div>
-                    <ul className="space-y-2">
-                        {data.thenRead?.map((file, i) => (
-                            <li key={i} className="flex items-start gap-2">
-                                <ArrowRight className="w-4 h-4 text-purple-500 mt-1 flex-shrink-0" />
-                                <span className="text-sm text-foreground/80 code bg-purple-50 dark:bg-purple-950/30 px-2 py-1 rounded flex-1">
-                                    {file}
-                                </span>
-                            </li>
-                        ))}
-                    </ul>
-                </Card>
-            </div>
-
-            {/* DATA FLOW */}
-            <Card className="mb-6 bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-950/20 dark:to-blue-950/20 border-l-4 border-l-cyan-500">
-                <div className="flex items-center gap-3">
-                    <Zap className="w-5 h-5 text-cyan-600" />
-                    <div className="flex-1">
-                        <h4 className="text-sm font-bold text-cyan-600 mb-2">⚡ DATA FLOW</h4>
-                        <p className="text-sm font-mono text-foreground/90 leading-relaxed">{data.dataFlowSummary}</p>
-                    </div>
-                </div>
-            </Card>
-
-            {/* HIGH-RISK FILES */}
-            <Card variant="danger" className="mb-6 border-l-4 border-l-red-500">
-                <div className="flex items-center gap-2 mb-3">
-                    <AlertTriangle className="w-4 h-4 text-red-600" />
-                    <h4 className="text-sm font-bold text-red-600">⚠️ HIGH-RISK FILES (Avoid Initially)</h4>
-                </div>
-                <ul className="space-y-2">
-                    {data.highRiskFiles?.map((file, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                            <XCircle className="w-4 h-4 text-red-500 mt-1 flex-shrink-0" />
-                            <span className="text-sm text-foreground/80 code bg-red-50 dark:bg-red-950/30 px-2 py-1 rounded flex-1 leading-relaxed">
-                                {file}
+        <section className="group">
+            <SectionHeader title="Engineering Maturity Index" icon={Activity} onCommentClick={onComment} />
+            <div className="p-10 bg-white border border-border/40 rounded-[2.5rem] shadow-sm overflow-hidden relative group-hover:shadow-xl transition-all duration-500">
+                <div className="grid md:grid-cols-2 gap-12 items-center">
+                    <div className="relative">
+                        <div className="flex justify-between items-end mb-8">
+                            <h3 className="text-2xl font-black tracking-tight text-[#1A1A1A]">
+                                {data.rating}
+                            </h3>
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
+                                Level {currentIndex + 1} of 4
                             </span>
-                        </li>
+                        </div>
+                        
+                        <div className="space-y-6">
+                            {stages.map((s, i) => {
+                                const active = i <= currentIndex;
+                                const isCurrent = i === currentIndex;
+                                return (
+                                    <div key={i} className="space-y-2">
+                                        <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider">
+                                            <span className={active ? "text-primary" : "text-muted-foreground/40"}>{s}</span>
+                                            {isCurrent && <span className="text-primary flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Current</span>}
+                                        </div>
+                                        <div className="h-2 w-full bg-secondary/30 rounded-full overflow-hidden">
+                                            <div 
+                                                className={cn(
+                                                    "h-full transition-all duration-1000 ease-out",
+                                                    active ? "bg-primary" : "bg-transparent",
+                                                    isCurrent ? "animate-pulse" : ""
+                                                )} 
+                                                style={{ width: active ? '100%' : '0%', transitionDelay: `${i * 150}ms` }}
+                                            />
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="relative h-full flex flex-col justify-center">
+                        <div className="absolute inset-0 bg-primary/5 rounded-[2rem] blur-2xl pointer-events-none" />
+                        <div className="relative p-8 bg-black/5 backdrop-blur-sm border border-black/5 rounded-[2rem]">
+                            <div className="flex items-center gap-2 mb-4 text-primary">
+                                <AlertTriangle className="w-4 h-4" />
+                                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Contextual Analysis</span>
+                            </div>
+                            <p className="text-base font-medium text-[#1A1A1A] leading-relaxed italic">
+                                "{data.reason}"
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    );
+}
+
+// --- 3. 15-Minute Onboarding Path ---
+function OnboardingPath({ data, onComment, analysisId, teamId }: { data: AnalysisResult['onboarding'], onComment: () => void, analysisId?: string, teamId?: string }) {
+    return (
+        <section>
+            <SectionHeader title="🚀 15-Minute Onboarding Path" icon={Globe} onCommentClick={onComment} />
+
+            <div className="grid md:grid-cols-2 gap-8 mb-8">
+                <div className="bg-white border border-border/40 rounded-[2.5rem] p-8 shadow-sm hover:shadow-lg transition-all border-t-4 border-t-blue-500">
+                    <div className="flex items-center justify-between mb-8">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                                <Play className="w-5 h-5 fill-current" />
+                            </div>
+                            <h3 className="text-lg font-black text-[#1A1A1A]">First 15 Mins</h3>
+                        </div>
+                        <Badge className="bg-blue-50 text-blue-600 border-none px-3 py-1 font-black">QUICK START</Badge>
+                    </div>
+                    
+                    <ul className="space-y-6">
+                        {data.first15Mins.map((item, i) => (
+                            <li key={i} className="group/item">
+                                <div className="flex items-start justify-between gap-4 mb-2">
+                                    <span className="text-sm font-bold font-mono bg-blue-50 text-blue-700 px-3 py-1.5 rounded-xl border border-blue-100 break-all">
+                                        {item.file}
+                                    </span>
+                                    <ReviewToggle analysisId={analysisId || ''} teamId={teamId} filePath={item.file} />
+                                </div>
+                                <p className="text-sm text-muted-foreground leading-relaxed pl-1 transition-colors group-hover/item:text-foreground">
+                                    {item.reason}
+                                </p>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+
+                <div className="bg-white border border-border/40 rounded-[2.5rem] p-8 shadow-sm hover:shadow-lg transition-all border-t-4 border-t-purple-500">
+                    <div className="flex items-center justify-between mb-8">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                                <BookOpen className="w-5 h-5" />
+                            </div>
+                            <h3 className="text-lg font-black text-[#1A1A1A]">Next 30 Mins</h3>
+                        </div>
+                        <Badge className="bg-purple-50 text-purple-600 border-none px-3 py-1 font-black">DEEP DIVE</Badge>
+                    </div>
+                    
+                    <ul className="space-y-6">
+                        {data.next30Mins.map((item, i) => (
+                            <li key={i} className="group/item">
+                                <div className="flex items-start justify-between gap-4 mb-2">
+                                    <span className="text-sm font-bold font-mono bg-purple-50 text-purple-700 px-3 py-1.5 rounded-xl border border-purple-100 break-all">
+                                        {item.file}
+                                    </span>
+                                    <ReviewToggle analysisId={analysisId || ''} teamId={teamId} filePath={item.file} />
+                                </div>
+                                <p className="text-sm text-muted-foreground leading-relaxed pl-1 transition-colors group-hover/item:text-foreground">
+                                    {item.reason}
+                                </p>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            </div>
+
+            <div className="bg-[#1A1A1A] rounded-[2.5rem] p-8 mb-8 overflow-hidden relative shadow-2xl">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center gap-8">
+                    <div className="shrink-0 flex items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10">
+                        <Zap className="w-5 h-5 text-primary fill-current" />
+                        <span className="text-[10px] font-black tracking-[0.2em] text-white">CORE DATA FLOW</span>
+                    </div>
+                    
+                    <div className="flex items-center flex-wrap gap-3">
+                        {data.dataFlow.split('->').map((step, idx, arr) => (
+                            <div key={idx} className="flex items-center gap-3">
+                                <div className="px-4 py-2 bg-white/10 rounded-2xl border border-white/5 text-sm font-bold text-slate-200">
+                                    {step.trim()}
+                                </div>
+                                {idx < arr.length - 1 && <ArrowRight className="w-4 h-4 text-primary opacity-50" />}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-red-50/50 border border-red-200 rounded-[2.5rem] p-8 shadow-inner overflow-hidden relative">
+                <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-red-500 text-white flex items-center justify-center shadow-lg shadow-red-500/20">
+                            <AlertTriangle className="w-5 h-5" />
+                        </div>
+                        <h3 className="text-lg font-black text-red-900">High Risk Files</h3>
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-red-600">Audit required</span>
+                </div>
+                
+                <div className="grid lg:grid-cols-2 gap-4">
+                    {data.highRiskFiles.map((item, i) => (
+                        <div key={i} className="group bg-white p-5 rounded-3xl border border-red-200 hover:border-red-500 transition-all hover:bg-red-50/30">
+                            <div className="flex items-center justify-between gap-4 mb-3">
+                                <span className="text-sm font-bold font-mono text-red-700 truncate">{item.file}</span>
+                                <ReviewToggle analysisId={analysisId || ''} teamId={teamId} filePath={item.file} />
+                            </div>
+                            <p className="text-[11px] text-red-900/60 leading-relaxed italic border-l-2 border-red-200 pl-3">
+                                "{item.reason}"
+                            </p>
+                        </div>
                     ))}
-                </ul>
-            </Card>
-
-            {/* FIRST DAY ADVICE */}
-            <Card variant="warning" className="mb-6 border-l-4 border-l-amber-500">
-                <div className="flex items-center gap-3">
-                    <Construction className="w-5 h-5 text-amber-600" />
-                    <div className="flex-1">
-                        <h4 className="text-sm font-bold text-amber-600 mb-2">💡 If You&apos;re Joining This Project</h4>
-                        <p className="text-sm text-foreground/90 leading-relaxed">{data.firstDayAdvice}</p>
-                    </div>
-                </div>
-            </Card>
-
-            {/* Original Friction Metrics */}
-            <div className="pt-6 border-t border-border">
-                <h4 className="text-xs font-bold uppercase text-muted-foreground mb-4">Onboarding Friction Index</h4>
-                <div className="grid md:grid-cols-3 gap-6">
-                    <Card className="text-center">
-                        <p className="text-xs font-bold uppercase text-muted-foreground mb-1">Complexity</p>
-                        <p className="font-bold text-lg">{data.setupComplexity}</p>
-                    </Card>
-                    <Card className="text-center">
-                        <p className="text-xs font-bold uppercase text-muted-foreground mb-1">Docs</p>
-                        <p className="font-bold text-lg">{data.documentationClarity}</p>
-                    </Card>
-                    <Card className="text-center">
-                        <p className="text-xs font-bold uppercase text-muted-foreground mb-1">Ramp Up</p>
-                        <p className="font-bold text-lg">{data.estimatedOnboardingTime}</p>
-                    </Card>
                 </div>
             </div>
         </section>
     );
 }
 
-function Improvements({ data }: { data: AnalysisResult['improvements'] }) {
+// --- 4. Change Blast Radius ---
+function BlastRadius({ data, onComment, analysisId, teamId }: { data: AnalysisResult['blastRadius'], onComment: () => void, analysisId?: string, teamId?: string }) {
     return (
-        <section className="mb-16">
-            <SectionHeader title="Strategic Improvement Priorities" icon={TrendingUp} />
-            <div className="space-y-4">
-                {data?.map((item, i) => (
-                    <div key={i} className="flex items-start gap-4 p-4 rounded-xl border bg-card hover:shadow-md transition-all">
-                        <div className={cn("px-2 py-1 rounded text-xs font-bold uppercase flex-shrink-0",
-                            item.priority === 'High' ? "bg-red-100 text-red-700" :
-                                item.priority === 'Medium' ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"
-                        )}>
-                            {item.priority}
+        <section className="group">
+            <SectionHeader title="⚡ Change Blast Radius" icon={GitBranch} onCommentClick={onComment} />
+            
+            <div className="grid md:grid-cols-2 gap-10">
+                <div className="relative p-10 bg-slate-50 border border-slate-200 rounded-[2.5rem] shadow-sm overflow-hidden">
+                    <div className="flex items-center justify-between mb-10">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center">
+                                <AlertTriangle className="w-5 h-5 fill-current" />
+                            </div>
+                            <h3 className="text-xl font-black text-slate-800 tracking-tight">System Fragility</h3>
                         </div>
-                        <div className="flex-1">
-                            <h4 className="font-bold text-foreground text-sm mb-1">{item.title}</h4>
-                            <p className="text-sm text-muted-foreground">{item.description}</p>
-                        </div>
+                        <Badge className="bg-red-500 text-white border-none px-4 py-1.5 font-bold shadow-lg shadow-red-500/20">HIGH IMPACT</Badge>
                     </div>
-                ))}
+
+                    <div className="space-y-6">
+                        {data.highImpact.map((item, i) => (
+                            <div key={i} className="group/item relative p-6 bg-white border border-red-100 rounded-[2rem] hover:shadow-xl transition-all duration-300">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-bold font-mono text-red-700 leading-none mb-1 break-all">{item.file}</span>
+                                        <div className="flex items-center gap-2">
+                                            <div className="h-1.5 w-16 bg-red-100 rounded-full overflow-hidden">
+                                                <div className="h-full bg-red-500" style={{ width: `${Math.min(100, item.impactsModules * 15)}%` }} />
+                                            </div>
+                                            <span className="text-[10px] font-black text-red-500/80 uppercase tracking-tighter">Impacts {item.impactsModules} Modules</span>
+                                        </div>
+                                    </div>
+                                    <ReviewToggle analysisId={analysisId || ''} teamId={teamId} filePath={item.file} />
+                                </div>
+                                <p className="text-xs text-slate-500 font-medium leading-relaxed italic border-l-2 border-red-500/20 pl-4 py-1 group-hover/item:text-slate-800 transition-colors">
+                                    "{item.reason}"
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="relative p-10 bg-emerald-50/30 border border-emerald-200/50 rounded-[2.5rem] shadow-sm overflow-hidden group-hover:bg-emerald-50 transition-colors duration-500">
+                    <div className="flex items-center justify-between mb-10">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                                <ShieldCheck className="w-5 h-5" />
+                            </div>
+                            <h3 className="text-xl font-black text-emerald-900 tracking-tight">Safe Zones</h3>
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">Low Diffusion</span>
+                    </div>
+
+                    <div className="grid gap-4">
+                        {data.safeToModify.map((item, i) => (
+                            <div key={i} className="p-6 bg-white/70 backdrop-blur-sm border border-emerald-100 rounded-[2rem] hover:shadow-lg transition-all">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-sm font-black font-mono text-emerald-700 truncate">{item.file}</span>
+                                    <ReviewToggle analysisId={analysisId || ''} teamId={teamId} filePath={item.file} />
+                                </div>
+                                <p className="text-xs text-emerald-900/60 leading-relaxed font-medium">
+                                    {item.reason}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
         </section>
     );
 }
 
-function FinalRecommendation({ data }: { data: AnalysisResult['finalRecommendation'] }) {
-    return (
-        <div className="p-8 rounded-2xl bg-foreground text-background shadow-xl">
-            <div className="grid md:grid-cols-2 gap-8">
-                <div>
-                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-green-500" /> Good For</h3>
-                    <div className="flex flex-wrap gap-2">
-                        {data.goodFor?.map((tag, i) => (
-                            <Badge key={i} variant="secondary" className="bg-white/10 text-white border-none hover:bg-white/20">{tag}</Badge>
-                        ))}
-                    </div>
-                </div>
+// --- 5. Risk & Debt Summary ---
+function RiskAndDebt({ data, onComment, analysisId, teamId }: { data: AnalysisResult['riskAndDebt'], onComment: () => void, analysisId?: string, teamId?: string }) {
+    
+    // Status color helper for the table
+    const getBadgeColor = (val: string | number) => {
+        const vStr = String(val).toLowerCase();
+        if (["low", "high"].includes(vStr) && val === data.testCoverage.level) {
+            return vStr === "high" ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-red-50 text-red-700 border-red-100";
+        }
+        if (["high", "none"].includes(vStr)) return "bg-red-50 text-red-700 border-red-100";
+        if (["med", "medium", "average"].includes(vStr)) return "bg-amber-50 text-amber-700 border-amber-100";
+        if (["low", "good", "excellent"].includes(vStr)) return "bg-emerald-50 text-emerald-700 border-emerald-100";
+        if (typeof val === 'number') {
+            if (val >= 8) return "bg-emerald-50 text-emerald-700 border-emerald-100";
+            if (val >= 5) return "bg-amber-50 text-amber-700 border-amber-100";
+            return "bg-red-50 text-red-700 border-red-100";
+        }
+        return "bg-slate-50 text-slate-700 border-slate-100";
+    };
 
-                <div>
-                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-amber-500" /> Risky For</h3>
-                    <div className="flex flex-wrap gap-2">
-                        {data.riskyFor?.map((tag, i) => (
-                            <Badge key={i} variant="secondary" className="bg-white/10 text-white border-none hover:bg-white/20">{tag}</Badge>
-                        ))}
-                    </div>
+    return (
+        <section className="group">
+            <SectionHeader title="⚠️ Risk & Debt Summary" icon={Thermometer} onCommentClick={onComment} />
+
+            <div className="bg-white border border-border/40 rounded-[2.5rem] shadow-sm overflow-hidden mb-8">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead>
+                            <tr className="border-b border-border/40 bg-slate-50/50">
+                                <th className="py-5 px-8 text-xs font-black uppercase tracking-[0.2em] text-slate-400">Health Signal</th>
+                                <th className="py-5 px-8 text-xs font-black uppercase tracking-[0.2em] text-slate-400">Rating</th>
+                                <th className="py-5 px-8 text-xs font-black uppercase tracking-[0.2em] text-slate-400">Engineering Evidence</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/20">
+                            {[
+                                { label: "Coupling Risk", val: data.couplingRisk.level, reason: data.couplingRisk.reason },
+                                { label: "Maintainability", val: `${data.maintainability.score}/10`, raw: data.maintainability.score, reason: data.maintainability.reason },
+                                { label: "Test Coverage", val: data.testCoverage.level, reason: data.testCoverage.reason },
+                                { label: "Onboarding", val: data.onboardingTime.duration, reason: data.onboardingTime.reason, special: true },
+                                { label: "Refactor Safety", val: data.refactorSafety.level, reason: data.refactorSafety.reason }
+                            ].map((row, i) => (
+                                <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                                    <td className="py-5 px-8 text-sm font-bold text-[#1A1A1A]">{row.label}</td>
+                                    <td className="py-5 px-8">
+                                        <Badge className={cn("px-3 py-1 font-black text-[10px] uppercase shadow-sm border", getBadgeColor(row.raw || row.val))}>
+                                            {row.val}
+                                        </Badge>
+                                    </td>
+                                    <td className="py-5 px-8 text-sm text-muted-foreground leading-relaxed">{row.reason}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
-            <div className="mt-8 pt-8 border-t border-white/10">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-primary mb-2">Recommended Approach</h3>
-                <p className="text-xl font-bold leading-relaxed text-white">{data.recommendedApproach}</p>
+            <div className="relative p-10 bg-amber-50/20 border border-amber-200/40 rounded-[2.5rem] shadow-sm">
+                <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/20">
+                            <Construction className="w-5 h-5" />
+                        </div>
+                        <h3 className="text-xl font-black text-amber-900 tracking-tight">Technical Debt Backlog</h3>
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600">Top 3 Priorities</span>
+                </div>
+                
+                <div className="space-y-4">
+                    {data.top3DebtIssues.map((item, i) => (
+                        <div key={i} className="group bg-white/60 backdrop-blur-sm p-6 rounded-[2rem] border border-amber-200/50 hover:bg-white transition-all shadow-sm hover:shadow-md">
+                            <div className="flex items-center justify-between gap-6 mb-3">
+                                <div className="flex items-center gap-3">
+                                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 text-amber-700 font-black text-[10px]">{i + 1}</span>
+                                    <span className="text-sm font-black font-mono text-amber-800 break-all">{item.file}</span>
+                                </div>
+                                <ReviewToggle analysisId={analysisId || ''} teamId={teamId} filePath={item.file} />
+                            </div>
+                            <p className="text-sm text-amber-900/70 font-medium leading-relaxed">
+                                {item.issue}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </section>
+    );
+}
+
+// --- 6. Final Recommendation ---
+function FinalRecommendation({ data }: { data: AnalysisResult['recommendation'] }) {
+    return (
+        <div className="relative overflow-hidden rounded-[3rem] bg-[#0F172A] p-12 shadow-2xl text-white mt-16 border border-white/10">
+            {/* Verdict Glow */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px] -translate-y-1/2 pointer-events-none" />
+
+            <div className="relative z-10">
+                <div className="flex flex-col items-center text-center mb-16">
+                    <div className="w-16 h-16 rounded-[2rem] bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-6 shadow-glow border border-emerald-500/20">
+                        <CheckCircle2 className="w-8 h-8 fill-current" />
+                    </div>
+                    <h2 className="text-4xl font-black tracking-tighter mb-4 italic">The Final Verdict</h2>
+                    <div className="h-1 w-24 bg-primary/40 rounded-full" />
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-12 mb-16">
+                    <div className="space-y-8">
+                        <div className="flex items-center gap-3">
+                            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                            <h3 className="text-xs font-black uppercase tracking-[0.3em] text-emerald-400/80">Ideal Use Cases</h3>
+                        </div>
+                        <ul className="grid gap-4">
+                            {data.goodFor.map((tag, i) => (
+                                <li key={i} className="group flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-emerald-500/20 transition-all">
+                                    <div className="w-2 h-2 rounded-full bg-emerald-500/40 group-hover:scale-125 transition-transform" />
+                                    <span className="text-base font-medium text-slate-200">{tag}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+
+                    <div className="space-y-8">
+                        <div className="flex items-center gap-3">
+                            <XCircle className="w-5 h-5 text-red-400" />
+                            <h3 className="text-xs font-black uppercase tracking-[0.3em] text-red-400/80">Current Limitations</h3>
+                        </div>
+                        <ul className="grid gap-4">
+                            {data.notReadyFor.map((tag, i) => (
+                                <li key={i} className="group flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-red-500/20 transition-all">
+                                    <div className="w-2 h-2 rounded-full bg-red-500/40 group-hover:scale-125 transition-transform" />
+                                    <span className="text-base font-medium text-slate-200">{tag}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </div>
+
+                <div className="bg-white/5 backdrop-blur-md rounded-[2.5rem] p-10 border border-white/10 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-8">
+                        <Zap className="w-32 h-32 text-primary/5 -mr-8 -mt-8" />
+                    </div>
+                    
+                    <h3 className="text-lg font-black uppercase tracking-widest text-primary mb-10 flex items-center gap-3">
+                        <Activity className="w-5 h-5" /> Recommended Immediate Actions
+                    </h3>
+                    
+                    <div className="grid gap-6">
+                        {data.first3Actions.map((item, i) => (
+                            <div key={i} className="flex items-start gap-6 group">
+                                <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-primary/10 text-primary font-black text-sm shrink-0 mt-1 border border-primary/20">
+                                    {i + 1}
+                                </span>
+                                <div className="space-y-2">
+                                    <p className="text-lg font-bold text-white group-hover:text-primary transition-colors">{item.action}</p>
+                                    <div className="inline-flex items-center px-3 py-1 bg-black/40 rounded-lg border border-white/10 text-[11px] font-mono text-slate-400">
+                                        {item.file}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
         </div>
     );
 }
-
 // --- Main Layout ---
+export function AnalysisReport({ 
+    data: incomingData, 
+    repoUrl,
+    analysisId,
+    teamId
+}: { 
+    data: any, 
+    repoUrl: string,
+    analysisId?: string,
+    teamId?: string
+}) {
+    const [activeSection, setActiveSection] = useState<string | null>(null);
 
-export function AnalysisReport({ data, repoUrl }: { data: AnalysisResult, repoUrl: string }) {
-    if (!data) return null;
+    // Robust data parsing
+    let data: AnalysisResult;
+    try {
+        data = typeof incomingData === 'string' ? JSON.parse(incomingData) : incomingData;
+    } catch (e) {
+        console.error("Failed to parse analysis data:", e);
+        return <div className="p-8 text-center text-red-500 border border-red-200 rounded-xl bg-red-50 dark:bg-red-950/20 mt-8">Corrupted report data. Try re-analyzing.</div>;
+    }
+
+    if (!data || !data.tldr) return <div className="p-8 text-center text-red-500 border border-red-200 rounded-xl bg-red-50 dark:bg-red-950/20 mt-8">Invalid or missing report data structure. Try re-analyzing.</div>;
+
+    const toggleComments = (sectionId: string) => {
+        if (activeSection === sectionId) setActiveSection(null);
+        else setActiveSection(sectionId);
+    };
 
     return (
-        <div className="w-full max-w-[1400px] mx-auto pb-32 font-sans selection:bg-primary/20">
-            <ReportHeader data={data} repoUrl={repoUrl} />
-            <ExecutiveVerdict data={data.executiveVerdict} />
-
-            {/* 🚀 15-Minute Onboarding Path - Positioned prominently after verdict */}
-            <Onboarding data={data.onboarding} />
-
-            <div className="grid gap-2">
-                <ArchitecturalHealth data={data.architecturalHealth} />
-                <DependencyAnalysis data={data.dependencyAnalysis} />
-                <BlastRadius data={data.blastRadius} />
-                <Maintainability data={data.maintainability} />
-                <div className="grid md:grid-cols-2 gap-12">
-                    <ExecutionFlow data={data.executionFlow} />
-                    <TestingProfile data={data.testingProfile} />
-                </div>
-                <Scalability data={data.scalability} />
-                <Improvements data={data.improvements} />
-                <FinalRecommendation data={data.finalRecommendation} />
+        <div className="w-full max-w-[1000px] mx-auto pb-32 font-sans selection:bg-primary/20 relative">
+            <TLDRSection data={data.tldr} repoUrl={repoUrl} />
+            <div className="grid gap-12 mt-8">
+                <MaturityScale 
+                    data={data.maturity} 
+                    onComment={() => toggleComments('maturity')} 
+                    analysisId={analysisId}
+                    teamId={teamId}
+                />
+                <OnboardingPath 
+                    data={data.onboarding} 
+                    onComment={() => toggleComments('onboarding')}
+                    analysisId={analysisId}
+                    teamId={teamId}
+                />
+                <BlastRadius 
+                    data={data.blastRadius} 
+                    onComment={() => toggleComments('blast')}
+                    analysisId={analysisId}
+                    teamId={teamId}
+                />
+                <RiskAndDebt 
+                    data={data.riskAndDebt} 
+                    onComment={() => toggleComments('risk')}
+                    analysisId={analysisId}
+                    teamId={teamId}
+                />
             </div>
+            <FinalRecommendation data={data.recommendation} />
+
+            {analysisId && (
+                <CommentSystem 
+                    analysisId={analysisId}
+                    sectionId={activeSection || ''}
+                    isOpen={!!activeSection}
+                    onClose={() => setActiveSection(null)}
+                />
+            )}
         </div>
     );
 }

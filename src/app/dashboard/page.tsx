@@ -58,7 +58,7 @@ export default async function DashboardPage() {
                         What shall we <span className="text-primary italic">analyze</span> today?
                     </h1>
                     <p className="text-muted-foreground text-base md:text-xl max-w-xl mx-auto leading-relaxed font-medium opacity-80">
-                        Paste any public GitHub URL to unlock deep architectural insights and system clarity.
+                        Paste any <span className="font-bold text-primary">public GitHub URL</span> to unlock deep architectural insights and system clarity.
                     </p>
                 </div>
 
@@ -111,7 +111,7 @@ export default async function DashboardPage() {
                             return (
                                 <Link
                                     key={analysis.id}
-                                    href={`/report/${analysis.id}`}
+                                    href={`/analysis/${analysis.slug}`}
                                     className="group relative overflow-hidden flex items-center justify-between p-5 rounded-2xl bg-white border border-border/40 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300"
                                 >
                                     <div className="flex items-center gap-5 relative z-10">

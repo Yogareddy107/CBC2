@@ -7,7 +7,7 @@ import { AnalysisRunner } from '@/components/AnalysisRunner';
 import { AnalysisResult } from '@/lib/llm/client';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, LayoutDashboard } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { ShareReportButton } from '@/components/ShareReportButton';
 import { eq } from 'drizzle-orm';
@@ -51,15 +51,24 @@ export default async function ReportPage({ params: paramsPromise }: ReportPagePr
         <div className="min-h-screen bg-background text-foreground font-sans">
             <Navbar user={user} />
 
-            <div className="border-b border-border/40 bg-secondary/5">
-                <div className="max-w-4xl mx-auto px-6 py-3 flex justify-between items-center">
-                    <Link href={user ? "/dashboard" : "/"} className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
-                        <ArrowLeft className="w-3 h-3" />
-                        {user ? 'Back to Dashboard' : 'Back to Home'}
-                    </Link>
+                <div className="max-w-4xl mx-auto px-6 py-4 flex justify-between items-center">
+                    <Button asChild variant="ghost" size="sm" className="font-bold gap-2 text-slate-600 hover:text-black hover:bg-white rounded-xl h-9">
+                        <Link href={user ? "/dashboard" : "/"} className="flex items-center gap-2">
+                             {user ? (
+                                <>
+                                    <LayoutDashboard className="w-4 h-4" />
+                                    Back to Dashboard
+                                </>
+                             ) : (
+                                <>
+                                    <ArrowLeft className="w-4 h-4" />
+                                    Back to Home
+                                </>
+                             )}
+                        </Link>
+                    </Button>
                     <ShareReportButton />
                 </div>
-            </div>
 
             <main className="max-w-4xl mx-auto px-6 py-12">
                 {isCompleted && result ? (

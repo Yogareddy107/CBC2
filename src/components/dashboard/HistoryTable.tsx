@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 interface Analysis {
     id: string;
     repo_url: string;
+    slug: string | null;
     status: string;
     created_at: string;
     summary: string | null;
@@ -31,7 +32,7 @@ export function HistoryTable({ initialAnalyses }: HistoryTableProps) {
 
         setDeletingId(id);
         try {
-            const result = await deleteAnalysis(id);
+            const result = await deleteAnalysis(id) as { success: boolean };
             if (result.success) {
                 setAnalyses(prev => prev.filter(a => a.id !== id));
                 router.refresh();
@@ -73,7 +74,7 @@ export function HistoryTable({ initialAnalyses }: HistoryTableProps) {
                                             <Github className="w-4 h-4 text-[#1A1A1A]/40 group-hover:text-[#FF7D29] transition-colors" />
                                         </div>
                                         <Link
-                                            href={`/report/${analysis.id}`}
+                                            href={`/analysis/${analysis.slug}`}
                                             className="font-medium text-[#1A1A1A] group-hover:text-[#FF7D29] transition-colors truncate max-w-[200px]"
                                             title={`View report for ${analysis.repo_url}`}
                                         >

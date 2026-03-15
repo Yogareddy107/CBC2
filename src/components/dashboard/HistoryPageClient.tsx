@@ -8,6 +8,7 @@ import { HistoryTable } from './HistoryTable';
 interface Analysis {
   id: string;
   repo_url: string;
+  slug: string | null;
   status: string;
   created_at: string;
   summary: string | null;

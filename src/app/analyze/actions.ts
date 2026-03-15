@@ -20,19 +20,28 @@ export async function createAnalysis(repoUrl: string) {
         throw new Error("Authentication required to create an analysis record.");
     }
 
+    // Generate slug from repoUrl
+    let slug = crypto.randomUUID().substring(0, 8);
+    const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+    if (match) {
+        const repoName = match[2].replace(/\.git$/, '');
+        slug = `${repoName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${slug}`;
+    }
+
     // Initialize the record with 'pending' status
     const [data] = await db.insert(analyses).values({
         id: crypto.randomUUID(),
         user_id: user.$id,
         repo_url: repoUrl,
+        slug: slug,
         status: 'pending'
-    }).returning({ id: analyses.id });
+    }).returning({ id: analyses.id, slug: analyses.slug });
 
     if (!data) {
         throw new Error("Failed to initialize analysis record");
     }
 
-    return { id: data.id };
+    return { id: data.id, slug: data.slug };
 }
 
 /**
@@ -68,16 +77,12 @@ export async function runAnalysis(analysisId: string, repoUrl: string) {
         const analysisResult = await analyzeRepo(repoData);
 
         // 5. Finalize as 'completed'
-        const summary =
-            analysisResult?.onboarding?.coreDomainSummary ||
-            repoData?.description?.slice(0, 180) ||
-            "Summary not available";
+        const summary = analysisResult.tldr?.architecture || repoData?.description?.slice(0, 180) || "Analysis completed.";
 
         const [updated] = await db.update(analyses)
             .set({
                 status: 'completed',
                 result: analysisResult,
-                result_length: JSON.stringify(analysisResult).length,
                 summary: summary,
                 updated_at: new Date().toISOString()
             })
@@ -121,4 +126,36 @@ export async function deleteAnalysis(analysisId: string) {
         .where(and(eq(analyses.id, analysisId), eq(analyses.user_id, user.$id)));
 
     return { success: true };
+}
+
+/**
+ * 4. reAnalyze
+ * Resets an analysis to 'pending' to trigger a re-run.
+ */
+export async function reAnalyze(slug: string) {
+    try {
+        const [analysis] = await db.select().from(analyses)
+            .where(eq(analyses.slug, slug))
+            .limit(1);
+
+        if (!analysis) throw new Error("Analysis not found");
+
+        // We check if the status is not already running
+        if (analysis.status === 'running') {
+            return { success: false, error: "Analysis is already running." };
+        }
+
+        await db.update(analyses)
+            .set({ 
+                status: 'pending',
+                result: null,
+                error_message: null,
+                updated_at: new Date().toISOString()
+            })
+            .where(eq(analyses.slug, slug));
+
+        return { success: true };
+    } catch (err: any) {
+        return { success: false, error: err.message };
+    }
 }

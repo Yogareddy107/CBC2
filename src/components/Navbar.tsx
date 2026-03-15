@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CheckCircle2, Github, LogOut, Layout } from 'lucide-react';
+import { CheckCircle2, Github, LogOut, Layout, Activity, GitPullRequest, Users } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { signOut } from '@/app/auth/actions';
@@ -85,6 +85,27 @@ export function Navbar({ user, freeTries }: NavbarProps) {
                                     </Link>
                                 </Button>
                             )}
+
+                            <Button asChild variant="ghost" size="sm" className="gap-2 hidden md:flex">
+                                <Link href="/impact">
+                                    <Activity className="w-4 h-4" />
+                                    <span className="hidden sm:inline">Impact Analyzer</span>
+                                </Link>
+                            </Button>
+
+                            <Button asChild variant="ghost" size="sm" className="gap-2 hidden lg:flex">
+                                <Link href="/pr-review">
+                                    <GitPullRequest className="w-4 h-4" />
+                                    <span className="hidden sm:inline">PR Review</span>
+                                </Link>
+                            </Button>
+
+                            <Button asChild variant="ghost" size="sm" className="gap-2 hidden lg:flex">
+                                <Link href="/team">
+                                    <Users className="w-4 h-4" />
+                                    <span className="hidden sm:inline">Team</span>
+                                </Link>
+                            </Button>
 
                             <Button
                                 variant="ghost"

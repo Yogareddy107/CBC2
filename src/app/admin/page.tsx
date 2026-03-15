@@ -141,9 +141,6 @@ export default async function AdminDashboard() {
                         <p className="text-muted-foreground text-sm">Internal engineering control panel</p>
                     </div>
                     <div className="flex items-center gap-4">
-                        <Link href="/admin/support" className="text-sm font-medium hover:underline">
-                            Support
-                        </Link>
                         <Link href="/dashboard" className="text-sm font-medium hover:underline">
                             Back to App
                         </Link>

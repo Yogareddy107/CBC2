@@ -47,8 +47,7 @@ export async function GET(request: NextRequest) {
       .orderBy(asc(messages.created_at));
 
     const result = convoMessages.map((m) => ({
-      id: m.id,
-      sender_type: m.sender_type,
+      sender: m.sender_type,
       message: m.message,
       status: m.status,
       created_at: m.created_at,

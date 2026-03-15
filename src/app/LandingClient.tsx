@@ -138,80 +138,84 @@ export default function LandingClient() {
                 </Reveal>
 
                 <Reveal>
-                    <section className="py-[120px] border-y border-[#1A1A1A]/5">
-                        <div className="max-w-[1200px] mx-auto px-6 grid md:grid-cols-[60%_40%] gap-16 items-center">
-                            <div className="space-y-10">
-                                <h2 className="text-4xl md:text-5xl font-bold tracking-tight text-[#1A1A1A] leading-tight">
-                                    Stop Wasting Hours Reading Code Blindly.
-                                </h2>
+                    {/* Social Proof / Trusted By */}
+                    <section className="py-20 bg-white border-b border-[#1A1A1A]/5">
+                        <div className="max-w-[1200px] mx-auto px-6">
+                            <p className="text-center text-sm font-bold text-[#1A1A1A]/40 uppercase tracking-widest mb-10">
+                                Trusted by developers at forward-thinking teams
+                            </p>
+                            <div className="flex flex-wrap items-center justify-center gap-12 md:gap-20 opacity-50 grayscale contrast-125">
+                                {['Vercel', 'Stripe', 'Supabase', 'Linear', 'Railway'].map((company) => (
+                                    <span key={company} className="text-2xl font-bold tracking-tighter text-[#1A1A1A]">
+                                        {company}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+                </Reveal>
 
-                                <div className="relative pl-8 space-y-6">
-                                    <div className="absolute left-0 top-2 bottom-2 w-[2px] bg-[#FF7D29]" />
-                                    {[
-                                        "Untangling cryptic folder hierarchies without context.",
-                                        "Scanning stale READMEs that don't match the code.",
-                                        "Tracing deep imports just to find the actual entry point.",
-                                        "Building mental maps that vanish by the next morning.",
-                                        "Guessing the impact of changes in high-risk modules."
-                                    ].map((item, idx) => (
-                                        <p key={idx} className="text-xl text-[#1A1A1A]/70 font-medium">
-                                            {item}
-                                        </p>
-                                    ))}
-                                </div>
+                <Reveal>
+                    {/* Before vs After Section */}
+                    <section className="py-[120px] bg-[#F9FAFB]">
+                        <div className="max-w-[1200px] mx-auto px-6">
+                            <div className="text-center max-w-3xl mx-auto space-y-4 mb-20">
+                                <h2 className="text-4xl md:text-5xl font-bold tracking-tight text-[#1A1A1A]">
+                                    The Old Way vs. The CBC Way
+                                </h2>
+                                <p className="text-lg text-[#1A1A1A]/60">
+                                    Stop wasting the most expensive hours of your day on mental architecture mapping.
+                                </p>
                             </div>
 
-                            <div className="relative group">
-                                <div className="bg-[#F8F9FA] border border-[#1A1A1A]/10 rounded-2xl overflow-hidden shadow-xl aspect-[4/5] flex flex-col blur-[2px] opacity-60 transition-all duration-700 select-none">
-                                    <div className="px-4 py-3 border-b border-[#1A1A1A]/5 flex items-center gap-2 bg-white">
-                                        <div className="flex gap-1.5">
-                                            <div className="w-2.5 h-2.5 rounded-full bg-[#1A1A1A]/10" />
-                                            <div className="w-2.5 h-2.5 rounded-full bg-[#1A1A1A]/10" />
-                                            <div className="w-2.5 h-2.5 rounded-full bg-[#1A1A1A]/10" />
-                                        </div>
-                                        <div className="ml-4 h-3 w-32 bg-[#1A1A1A]/5 rounded" />
+                            <div className="grid md:grid-cols-2 gap-8">
+                                {/* The Old Way */}
+                                <div className="bg-white border border-[#1A1A1A]/5 rounded-[32px] p-10 space-y-8 shadow-sm">
+                                    <div className="flex items-center gap-3 text-red-500 font-bold uppercase tracking-widest text-xs">
+                                        <X className="w-4 h-4" />
+                                        The Old Way
                                     </div>
-
-                                    <div className="p-4 space-y-4 overflow-y-auto">
+                                    <ul className="space-y-6">
                                         {[
-                                            { type: 'folder', name: 'src', open: true, depth: 0 },
-                                            { type: 'folder', name: 'core', open: true, depth: 1 },
-                                            { type: 'file', name: 'engine.ts', depth: 2 },
-                                            { type: 'folder', name: 'utils', open: false, depth: 2 },
-                                            { type: 'file', name: 'types.d.ts', depth: 2 },
-                                            { type: 'folder', name: 'services', open: true, depth: 1 },
-                                            { type: 'file', name: 'auth.service.ts', depth: 2 },
-                                            { type: 'file', name: 'data.service.ts', depth: 2 },
-                                            { type: 'folder', name: 'internal', open: true, depth: 2 },
-                                            { type: 'file', name: 'proxy.js', depth: 3 },
-                                            { type: 'folder', name: 'infrastructure', open: false, depth: 0 },
-                                            { type: 'folder', name: 'tests', open: false, depth: 0 },
-                                            { type: 'file', name: 'package.json', depth: 0 },
-                                            { type: 'file', name: 'README.md', depth: 0 },
-                                        ].map((item, i) => (
-                                            <div key={i} className="flex items-center gap-2" style={{ paddingLeft: `${item.depth * 16}px` }}>
-                                                {item.type === 'folder' ? (
-                                                    <>
-                                                        {item.open ? <ChevronDown className="w-4 h-4 text-[#1A1A1A]/30" /> : <ChevronRight className="w-4 h-4 text-[#1A1A1A]/30" />}
-                                                        <Folder className="w-4 h-4 text-[#FF7D29]/60" />
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <div className="w-4 h-4" /> {/* Spacer */}
-                                                        <FileText className="w-4 h-4 text-[#1A1A1A]/40" />
-                                                    </>
-                                                )}
-                                                <span className="text-sm font-medium text-[#1A1A1A]/50">{item.name}</span>
-                                            </div>
+                                            "Untangling cryptic folder hierarchies without context.",
+                                            "Scanning stale READMEs that don't match the code.",
+                                            "Tracing deep imports just to find the actual entry point.",
+                                            "Building mental maps that vanish by the next morning.",
+                                            "Guessing the impact of changes in high-risk modules."
+                                        ].map((item, idx) => (
+                                            <li key={idx} className="flex gap-4 text-[#1A1A1A]/70 leading-relaxed font-medium">
+                                                <span className="text-[#1A1A1A]/20 font-bold italic shrink-0">0{idx + 1}</span>
+                                                {item}
+                                            </li>
                                         ))}
-                                    </div>
+                                    </ul>
                                 </div>
 
-                                <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
-                                    <div className="bg-white/90 backdrop-blur-sm border border-[#FF7D29]/20 px-8 py-6 rounded-2xl shadow-2xl ring-1 ring-[#FF7D29]/10 transform -rotate-1">
-                                        <p className="text-xl md:text-2xl font-bold text-[#1A1A1A] tracking-tight">
-                                            "Where do you even start?"
-                                        </p>
+                                {/* The CBC Way */}
+                                <div className="bg-[#1A1A1A] text-white rounded-[32px] p-10 space-y-8 shadow-2xl relative overflow-hidden group">
+                                    <div className="absolute top-0 right-0 w-64 h-64 bg-[#FF7D29] opacity-10 blur-[100px] -translate-y-1/2 translate-x-1/2" />
+                                    <div className="flex items-center gap-3 text-[#FF7D29] font-bold uppercase tracking-widest text-xs relative z-10">
+                                        <Check className="w-4 h-4" />
+                                        The CBC Way
+                                    </div>
+                                    <ul className="space-y-6 relative z-10">
+                                        {[
+                                            "Instant architecture mapping with structural intent.",
+                                            "Verified entry points and execution flow diagrams.",
+                                            "High-fidelity risk signal on critical path modules.",
+                                            "A persistent 15-minute onboarding roadmap.",
+                                            "Collaborative shared library for your whole team."
+                                        ].map((item, idx) => (
+                                            <li key={idx} className="flex gap-4 text-white/80 leading-relaxed font-medium">
+                                                <span className="text-[#FF7D29] font-bold italic shrink-0">0{idx + 1}</span>
+                                                {item}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <div className="pt-4 relative z-10">
+                                        <div className="inline-flex items-center gap-2 text-sm font-bold text-[#FF7D29] group-hover:gap-3 transition-all duration-300">
+                                            Start Analyzing Now <ArrowRight className="w-4 h-4" />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -410,6 +414,63 @@ export default function LandingClient() {
                                     </p>
                                     <div className="mt-auto pt-4 flex items-center gap-2 text-[#FF782D] font-bold text-sm opacity-0 group-hover:opacity-100 transition-opacity">
                                         Audit Systems <ArrowRight className="w-4 h-4" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </Reveal>
+
+                <Reveal>
+                    {/* Codebase of the Week */}
+                    <section className="py-24 bg-white">
+                        <div className="max-w-[1200px] mx-auto px-6">
+                            <div className="bg-[#F9FAFB] border border-[#1A1A1A]/5 rounded-[48px] p-8 md:p-16 relative overflow-hidden">
+                                <div className="absolute top-0 right-0 p-8">
+                                    <div className="bg-[#FF7D29]/10 text-[#FF7D29] text-xs font-bold uppercase tracking-widest px-4 py-2 rounded-full border border-[#FF7D29]/20">
+                                        Featured This Week
+                                    </div>
+                                </div>
+                                
+                                <div className="grid md:grid-cols-2 gap-12 items-center">
+                                    <div className="space-y-8">
+                                        <div className="space-y-4">
+                                            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-[#1A1A1A]">
+                                                facebook/react-compiler
+                                            </h2>
+                                            <p className="text-lg text-[#1A1A1A]/60 leading-relaxed">
+                                                We analyzed the new React Compiler. See how the architecture handles complex memoization and structural transformations.
+                                            </p>
+                                        </div>
+                                        <Button 
+                                            asChild
+                                            className="h-12 bg-[#1A1A1A] hover:bg-[#1A1A1A]/90 text-white px-8 rounded-xl font-bold"
+                                        >
+                                            <Link href="/analysis/facebook-react-compiler-featured">View Detailed Analysis</Link>
+                                        </Button>
+                                    </div>
+                                    <div className="relative">
+                                        <div className="bg-white rounded-3xl border border-[#1A1A1A]/10 shadow-2xl p-6 transform rotate-2">
+                                            <div className="space-y-4">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="text-sm font-bold text-[#1A1A1A]">Maturity Index</div>
+                                                    <div className="text-sm font-bold text-[#FF782D]">Production-Grade</div>
+                                                </div>
+                                                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                                                    <div className="h-full bg-primary w-[95%]" />
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-4 pt-4">
+                                                    <div className="bg-gray-50 p-4 rounded-2xl">
+                                                        <div className="text-xs font-bold text-[#1A1A1A]/40 uppercase mb-1">Risk Level</div>
+                                                        <div className="text-lg font-bold text-green-500">Low</div>
+                                                    </div>
+                                                    <div className="bg-gray-50 p-4 rounded-2xl">
+                                                        <div className="text-xs font-bold text-[#1A1A1A]/40 uppercase mb-1">Maintainability</div>
+                                                        <div className="text-lg font-bold text-[#1A1A1A]">9.2/10</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
