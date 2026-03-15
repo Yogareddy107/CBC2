@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { NewAnalysisForm } from '@/components/dashboard/NewAnalysisForm';
 import { desc, eq } from 'drizzle-orm';
 import { cookies } from 'next/headers';
+import { cn } from '@/lib/utils';
 
 export default async function DashboardPage() {
     let user: { $id: string, email: string } | null = null;
