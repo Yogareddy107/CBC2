@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { CTASection } from '@/components/ui/hero-dithering-card';
+import { Badge } from '@/components/ui/badge';
 import { Reveal } from '@/components/ui/Reveal';
 
 export default function LandingClient() {
