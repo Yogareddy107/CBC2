@@ -125,14 +125,6 @@ export default function LandingClient() {
                                     </Button>
                                 </form>
 
-                                <div className="flex items-center justify-center gap-6 pt-4">
-                                    <button
-                                        onClick={() => router.push('/analysis/facebook-react-compiler-featured')}
-                                        className="text-sm font-semibold flex items-center gap-2 hover:opacity-70 transition-opacity"
-                                    >
-                                        View Sample Analysis <ArrowRight className="w-4 h-4" />
-                                    </button>
-                                </div>
                             </div>
                         </CTASection>
                     </div>
@@ -140,17 +132,23 @@ export default function LandingClient() {
 
                 <Reveal>
                     {/* Social Proof / Trusted By */}
-                    <section className="py-20 bg-white border-b border-[#1A1A1A]/5">
+                    <section className="py-20 bg-white border-b border-[#1A1A1A]/5 overflow-hidden">
                         <div className="max-w-[1200px] mx-auto px-6">
                             <p className="text-center text-sm font-bold text-[#1A1A1A]/40 uppercase tracking-widest mb-10">
                                 Trusted by developers at forward-thinking teams
                             </p>
-                            <div className="flex flex-wrap items-center justify-center gap-12 md:gap-20 opacity-50 grayscale contrast-125">
-                                {['Vercel', 'Stripe', 'Supabase', 'Linear', 'Railway'].map((company) => (
-                                    <span key={company} className="text-2xl font-bold tracking-tighter text-[#1A1A1A]">
-                                        {company}
-                                    </span>
-                                ))}
+                            <div className="relative">
+                                <div className="flex w-fit items-center gap-20 opacity-50 grayscale contrast-125 animate-scroll">
+                                    {/* Double the logos for seamless looping */}
+                                    {[...['Vercel', 'Stripe', 'Supabase', 'Linear', 'Railway'], ...['Vercel', 'Stripe', 'Supabase', 'Linear', 'Railway']].map((company, idx) => (
+                                        <span key={`${company}-${idx}`} className="text-2xl font-bold tracking-tighter text-[#1A1A1A] whitespace-nowrap">
+                                            {company}
+                                        </span>
+                                    ))}
+                                </div>
+                                {/* Gradient offsets for smooth fading at edges */}
+                                <div className="absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-white to-transparent z-10" />
+                                <div className="absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-white to-transparent z-10" />
                             </div>
                         </div>
                     </section>
@@ -422,62 +420,6 @@ export default function LandingClient() {
                     </section>
                 </Reveal>
 
-                <Reveal>
-                    {/* Codebase of the Week */}
-                    <section className="py-24 bg-white">
-                        <div className="max-w-[1200px] mx-auto px-6">
-                            <div className="bg-[#F9FAFB] border border-[#1A1A1A]/5 rounded-[48px] p-8 md:p-16 relative overflow-hidden">
-                                <div className="absolute top-0 right-0 p-8">
-                                    <div className="bg-[#FF7D29]/10 text-[#FF7D29] text-xs font-bold uppercase tracking-widest px-4 py-2 rounded-full border border-[#FF7D29]/20">
-                                        Featured This Week
-                                    </div>
-                                </div>
-                                
-                                <div className="grid md:grid-cols-2 gap-12 items-center">
-                                    <div className="space-y-8">
-                                        <div className="space-y-4">
-                                            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-[#1A1A1A]">
-                                                facebook/react-compiler
-                                            </h2>
-                                            <p className="text-lg text-[#1A1A1A]/60 leading-relaxed">
-                                                We analyzed the new React Compiler. See how the architecture handles complex memoization and structural transformations.
-                                            </p>
-                                        </div>
-                                        <Button 
-                                            asChild
-                                            className="h-12 bg-[#1A1A1A] hover:bg-[#1A1A1A]/90 text-white px-8 rounded-xl font-bold"
-                                        >
-                                            <Link href="/analysis/facebook-react-compiler-featured">View Detailed Analysis</Link>
-                                        </Button>
-                                    </div>
-                                    <div className="relative">
-                                        <div className="bg-white rounded-3xl border border-[#1A1A1A]/10 shadow-2xl p-6 transform rotate-2">
-                                            <div className="space-y-4">
-                                                <div className="flex items-center justify-between">
-                                                    <div className="text-sm font-bold text-[#1A1A1A]">Maturity Index</div>
-                                                    <div className="text-sm font-bold text-[#FF782D]">Production-Grade</div>
-                                                </div>
-                                                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                                                    <div className="h-full bg-primary w-[95%]" />
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-4 pt-4">
-                                                    <div className="bg-gray-50 p-4 rounded-2xl">
-                                                        <div className="text-xs font-bold text-[#1A1A1A]/40 uppercase mb-1">Risk Level</div>
-                                                        <div className="text-lg font-bold text-green-500">Low</div>
-                                                    </div>
-                                                    <div className="bg-gray-50 p-4 rounded-2xl">
-                                                        <div className="text-xs font-bold text-[#1A1A1A]/40 uppercase mb-1">Maintainability</div>
-                                                        <div className="text-lg font-bold text-[#1A1A1A]">9.2/10</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-                </Reveal>
 
                 <Reveal>
                     <section id="pricing" className="bg-[#F9FAFB] py-[140px] border-t border-[#1A1A1A]/5">
