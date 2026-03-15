@@ -48,7 +48,7 @@ export default async function DashboardPage() {
                         What shall we <span className="text-[#FF7D29]">analyze</span> today?
                     </h1>
                     <p className="text-[#1A1A1A]/40 text-sm font-medium max-w-lg mx-auto leading-relaxed">
-                        Unlock deep architectural insights and system clarity from any public GitHub repository.
+                        Paste any Public GitHub URL to unlock deep architectural insights and system clarity
                     </p>
                 </div>
 
