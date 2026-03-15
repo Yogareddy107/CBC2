@@ -11,7 +11,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { CommentSystem } from './CommentSystem';
-import { markFileAsReviewed } from '@/app/team/actions';
+import { updateFileReview } from '@/app/team/actions';
 
 // --- Shared Elements ---
 function ReviewToggle({ 
@@ -32,7 +32,12 @@ function ReviewToggle({
 
     const handleToggle = async () => {
         setLoading(true);
-        const res = await markFileAsReviewed(analysisId, teamId, filePath);
+        const res = await updateFileReview({
+            analysisId,
+            teamId,
+            filePath,
+            status: 'reviewed'
+        });
         if (res.success) setReviewed(true);
         setLoading(false);
     };
