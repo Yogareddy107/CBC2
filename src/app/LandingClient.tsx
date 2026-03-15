@@ -126,7 +126,7 @@ export default function LandingClient() {
 
                                 <div className="flex items-center justify-center gap-6 pt-4">
                                     <button
-                                        onClick={() => router.push('/dashboard/history')}
+                                        onClick={() => router.push('/analysis/facebook-react-compiler-featured')}
                                         className="text-sm font-semibold flex items-center gap-2 hover:opacity-70 transition-opacity"
                                     >
                                         View Sample Analysis <ArrowRight className="w-4 h-4" />
@@ -571,14 +571,19 @@ export default function LandingClient() {
                                     </Button>
                                 </div>
 
-                                <div className="relative bg-white border-2 border-[#FF782D]/20 rounded-[32px] p-10 shadow-xl flex h-full flex-col justify-between gap-8 transition-all hover:shadow-2xl ring-1 ring-[#FF782D]/5 scale-105 z-10">
+                                <div className="relative bg-white border-2 border-[#FF782D]/20 rounded-[32px] p-10 shadow-xl flex h-full flex-col justify-between gap-8 transition-all hover:shadow-2xl ring-1 ring-[#FF782D]/5 z-10">
                                     <div className="absolute top-0 right-10 -translate-y-1/2 bg-[#FF782D] text-white text-[10px] font-bold uppercase tracking-widest px-4 py-1.5 rounded-full shadow-lg">
                                         Recommended
                                     </div>
                                     <div className="space-y-4">
-                                        <div className="space-y-1">
-                                            <h3 className="text-xl font-bold text-[#1A1A1A]">Pro Yearly</h3>
-                                            <p className="text-sm font-medium text-[#1A1A1A]/50">For serious developers and teams</p>
+                                        <div className="flex items-center justify-between">
+                                            <div className="space-y-1">
+                                                <h3 className="text-xl font-bold text-[#1A1A1A]">Pro Yearly</h3>
+                                                <p className="text-sm font-medium text-[#1A1A1A]/50">For serious developers and teams</p>
+                                            </div>
+                                            <Badge className="bg-[#FF782D]/10 text-[#FF782D] border-none font-bold text-[10px] px-3 py-1 rounded-full whitespace-nowrap">
+                                                Save 34%
+                                            </Badge>
                                         </div>
                                         <div className="flex items-baseline gap-1">
                                             <span className="text-5xl font-bold text-[#1A1A1A]">$79</span>
