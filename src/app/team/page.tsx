@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Users, Plus, Loader2, ArrowRight, Settings, ShieldCheck, Mail, BuildingIcon, User } from 'lucide-react';
-import { createTeam, getUserTeams, inviteMember } from './actions';
+import { createTeam, getUserTeams, inviteMember, joinTeam } from './actions';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
