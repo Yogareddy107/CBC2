@@ -1,5 +1,12 @@
 import Link from 'next/link';
 import { Compass } from 'lucide-react';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: "Terms of Service",
+  description: "Read the Terms of Service for CheckBeforeCommit, the AI-powered architectural governance platform.",
+  alternates: { canonical: "/terms" },
+};
 
 export default function TermsOfServicePage() {
   return (
@@ -90,7 +97,19 @@ export default function TermsOfServicePage() {
             </div>
 
             <div>
-              <h2 className="text-2xl font-bold text-[#1A1A1A] mb-4">9. User Responsibilities</h2>
+              <h2 className="text-2xl font-bold text-[#1A1A1A] mb-4">9. Data Security & Privacy</h2>
+              <p className="text-[#1A1A1A]/80 leading-relaxed">
+                CheckBeforeCommit is designed with a <strong>Privacy-First</strong> architecture. By using our service, you acknowledge that:
+              </p>
+              <ul className="list-disc list-inside space-y-2 text-[#1A1A1A]/80 mt-4">
+                <li>Analyzed source code is processed in-memory and is never stored on our servers.</li>
+                <li>Your Personal Access Tokens (PATs) are encrypted at rest and only used to facilitate the requested analysis.</li>
+                <li>We do not use your private code for AI model training or data mining.</li>
+              </ul>
+            </div>
+
+            <div>
+              <h2 className="text-2xl font-bold text-[#1A1A1A] mb-4">10. User Responsibilities</h2>
               <p className="text-[#1A1A1A]/80 leading-relaxed mb-4">As a user of CheckBeforeCommit, you agree to:</p>
               <ul className="list-disc list-inside space-y-2 text-[#1A1A1A]/80">
                 <li>Provide accurate and complete information during registration</li>

@@ -2,8 +2,8 @@
 
 import { db } from "@/lib/db";
 import { teams, team_members, analyses, comments, file_reviews, team_checklists } from "@/lib/db/schema";
-import { createSessionClient } from "@/lib/appwrite";
-import { eq, and, desc } from "drizzle-orm";
+import { createSessionClient, createAdminClient } from "@/lib/appwrite";
+import { eq, and, desc, sql, count } from "drizzle-orm";
 
 /**
  * 1. Create a Team
@@ -116,15 +116,20 @@ export async function getUserTeams() {
             teamId: team_members.team_id,
             role: team_members.role,
             teamName: teams.name,
-            ownerId: teams.owner_id
+            ownerId: teams.owner_id,
+            inviteCode: teams.invite_code,
+            createdAt: teams.created_at
         })
         .from(team_members)
         .innerJoin(teams, eq(team_members.team_id, teams.id))
         .where(eq(team_members.user_id, user.$id))
         .orderBy(desc(teams.created_at));
+        
+        console.log(`[getUserTeams] Found ${memberships.length} teams for user ${user.$id}:`, JSON.stringify(memberships, null, 2));
 
         return { success: true, teams: memberships };
     } catch (err: any) {
+        console.error("[getUserTeams] Error:", err);
         return { success: false, error: err.message };
     }
 }
@@ -325,7 +330,296 @@ export async function getFileReviews(analysisId: string, teamId: string) {
     try {
         const reviews = await db.select().from(file_reviews)
             .where(and(eq(file_reviews.analysis_id, analysisId), eq(file_reviews.team_id, teamId)));
-        return { success: true, reviews };
+
+        if (reviews.length === 0) return { success: true, reviews: [] };
+
+        // Fetch user info from Appwrite Admin
+        const admin = await createAdminClient();
+        const users = admin.users;
+
+        const reviewsWithInfo = await Promise.all(reviews.map(async (r) => {
+            try {
+                const user = await users.get(r.reviewer_id);
+                return {
+                    ...r,
+                    reviewerName: user.name || 'Unknown',
+                    reviewerEmail: user.email,
+                    reviewerAvatar: user.name ? user.name[0].toUpperCase() : 'U'
+                };
+            } catch {
+                return { ...r, reviewerName: 'Unknown User', reviewerEmail: 'N/A', reviewerAvatar: '?' };
+            }
+        }));
+
+        return { success: true, reviews: reviewsWithInfo };
+    } catch (err: any) {
+        return { success: false, error: err.message };
+    }
+}
+
+
+/**
+ * 11. Get Team Members with user details
+ */
+export async function getTeamMembers(teamId: string) {
+    try {
+        const memberships = await db.select()
+            .from(team_members)
+            .where(eq(team_members.team_id, teamId));
+
+        if (memberships.length === 0) return { success: true, members: [] };
+
+        // Fetch user info from Appwrite Admin
+        const admin = await createAdminClient();
+        const users = admin.users;
+        
+        const membersWithInfo = await Promise.all(memberships.map(async (m) => {
+            try {
+                const user = await users.get(m.user_id);
+                return {
+                    ...m,
+                    name: user.name || 'Unknown',
+                    email: user.email,
+                    avatar: user.name ? user.name[0].toUpperCase() : 'U'
+                };
+            } catch {
+                return { ...m, name: 'Inactive User', email: 'N/A', avatar: '?' };
+            }
+        }));
+
+        return { success: true, members: membersWithInfo };
+    } catch (err: any) {
+        return { success: false, error: err.message };
+    }
+}
+
+/**
+ * 12. Get Team Stats (Real)
+ */
+export async function getTeamStats(teamId: string) {
+    try {
+        const [aCount] = await db.select({ value: count() }).from(analyses).where(eq(analyses.team_id, teamId));
+        const [rCount] = await db.select({ value: count() }).from(file_reviews).where(eq(file_reviews.team_id, teamId));
+        
+        // Calculate Avg Maturity
+        const teamAnalyses = await db.select({ result: analyses.result }).from(analyses).where(eq(analyses.team_id, teamId));
+        let totalMaturity = 0;
+        let validMaturityCount = 0;
+
+        teamAnalyses.forEach(a => {
+            const res = a.result as any;
+            if (res?.healthBreakdown?.score) {
+                const score = res.healthBreakdown.score;
+                if (typeof score === 'number') {
+                    totalMaturity += score;
+                    validMaturityCount++;
+                }
+            } else if (res?.modernityMetrics?.score) {
+                // Fallback for legacy analyses
+                const scoreStr = res.modernityMetrics.score;
+                const score = parseInt(String(scoreStr).replace('%', ''));
+                if (!isNaN(score)) {
+                    totalMaturity += score;
+                    validMaturityCount++;
+                }
+            }
+        });
+
+        const avgMaturity = validMaturityCount > 0 ? Math.round(totalMaturity / validMaturityCount) : 0;
+
+        // Get recent high-risk alerts
+        const highRiskAnalyses = teamAnalyses
+            .filter(a => {
+                const res = a.result as any;
+                return res?.securityOverview?.riskLevel === 'High' || res?.securityOverview?.riskLevel === 'Critical';
+            })
+            .length;
+
+        return {
+            success: true,
+            stats: {
+                totalAnalyses: Number(aCount.value) || 0,
+                filesReviewed: Number(rCount.value) || 0,
+                avgMaturity: `${avgMaturity}%`,
+                highRiskAlerts: highRiskAnalyses
+            }
+        };
+    } catch (err: any) {
+        return { success: false, error: err.message };
+    }
+}
+
+/**
+ * 13. Update Team Settings (Slack Webhook, etc.)
+ */
+export async function updateTeamSettings(teamId: string, data: { slackWebhook?: string }) {
+    let user;
+    try {
+        const { account } = await createSessionClient();
+        user = await account.get();
+    } catch {
+        throw new Error("Unauthorized");
+    }
+
+    try {
+        // Verify admin
+        const [membership] = await db.select().from(team_members)
+            .where(and(eq(team_members.team_id, teamId), eq(team_members.user_id, user.$id), eq(team_members.role, 'admin')))
+            .limit(1);
+
+        if (!membership) throw new Error("Only team admins can update settings.");
+
+        await db.update(teams)
+            .set({ 
+                slack_webhook: data.slackWebhook 
+            })
+            .where(eq(teams.id, teamId));
+
+        return { success: true };
+    } catch (err: any) {
+        return { success: false, error: err.message };
+    }
+}
+
+/**
+ * 14. Get Team Settings
+ */
+export async function getTeamSettings(teamId: string) {
+    try {
+        const [team] = await db.select({
+            slackWebhook: teams.slack_webhook,
+            plan: teams.plan,
+            name: teams.name,
+            invite_code: teams.invite_code,
+        }).from(teams).where(eq(teams.id, teamId)).limit(1);
+
+        return { success: true, settings: team };
+    } catch (err: any) {
+        return { success: false, error: err.message };
+    }
+}
+
+/**
+ * 17. Get Team Health Trends
+ */
+export async function getTeamHealthTrends(teamId: string) {
+    try {
+        const history = await db.select({
+            id: analyses.id,
+            repo_url: analyses.repo_url,
+            result: analyses.result,
+            created_at: analyses.created_at
+        })
+        .from(analyses)
+        .where(eq(analyses.team_id, teamId))
+        .orderBy(analyses.created_at);
+
+        // Group by Date and calculate averages
+        const trends = history.map(h => {
+            const res = h.result as any;
+            return {
+                date: new Date(h.created_at!).toLocaleDateString(),
+                score: res?.healthBreakdown?.score || 0,
+                adherence: res?.governance?.adherenceScore || 100,
+                repo: h.repo_url.split('/').pop()
+            };
+        });
+
+        return { success: true, trends };
+    } catch (err: any) {
+        return { success: false, error: err.message };
+    }
+}
+
+/**
+ * 15. Update Member Role
+ */
+export async function updateMemberRole(teamId: string, userId: string, newRole: "admin" | "architect" | "member") {
+    let user;
+    try {
+        const { account } = await createSessionClient();
+        user = await account.get();
+    } catch {
+        throw new Error("Unauthorized");
+    }
+
+    try {
+        // Verify current user is admin
+        const [membership] = await db.select().from(team_members)
+            .where(and(eq(team_members.team_id, teamId), eq(team_members.user_id, user.$id), eq(team_members.role, 'admin')))
+            .limit(1);
+
+        if (!membership) throw new Error("Only team admins can manage roles.");
+
+        await db.update(team_members)
+            .set({ role: newRole })
+            .where(and(eq(team_members.team_id, teamId), eq(team_members.user_id, userId)));
+
+        return { success: true };
+    } catch (err: any) {
+        return { success: false, error: err.message };
+    }
+}
+
+/**
+ * 16. Remove Member from Team
+ */
+export async function removeMember(teamId: string, userId: string) {
+    let user;
+    try {
+        const { account } = await createSessionClient();
+        user = await account.get();
+    } catch {
+        throw new Error("Unauthorized");
+    }
+
+    try {
+        // Verify current user is admin
+        const [membership] = await db.select().from(team_members)
+            .where(and(eq(team_members.team_id, teamId), eq(team_members.user_id, user.$id), eq(team_members.role, 'admin')))
+            .limit(1);
+
+        if (!membership) throw new Error("Only team admins can remove members.");
+
+        // Prevent self-removal if last admin
+        const [team] = await db.select().from(teams).where(eq(teams.id, teamId)).limit(1);
+        if (team?.owner_id === userId) {
+            throw new Error("The team owner cannot be removed.");
+        }
+
+        await db.delete(team_members)
+            .where(and(eq(team_members.team_id, teamId), eq(team_members.user_id, userId)));
+
+        return { success: true };
+    } catch (err: any) {
+        return { success: false, error: err.message };
+    }
+}
+/**
+ * 18. Update Team Name
+ */
+export async function updateTeam(teamId: string, name: string) {
+    let user;
+    try {
+        const { account } = await createSessionClient();
+        user = await account.get();
+    } catch {
+        throw new Error("Unauthorized");
+    }
+
+    try {
+        // Verify current user is admin
+        const [membership] = await db.select().from(team_members)
+            .where(and(eq(team_members.team_id, teamId), eq(team_members.user_id, user.$id), eq(team_members.role, 'admin')))
+            .limit(1);
+
+        if (!membership) throw new Error("Only team admins can update team settings.");
+
+        await db.update(teams)
+            .set({ name })
+            .where(eq(teams.id, teamId));
+
+        return { success: true };
     } catch (err: any) {
         return { success: false, error: err.message };
     }

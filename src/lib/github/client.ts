@@ -1,27 +1,37 @@
-export async function getRepoData(owner: string, repo: string) {
-    const token = process.env.GITHUB_TOKEN;
+export async function getRepoData(owner: string, repo: string, userToken?: string) {
+    const token = userToken || process.env.GITHUB_TOKEN;
     const headers: HeadersInit = {
         "Accept": "application/vnd.github.v3+json",
+        "User-Agent": "CheckBeforeCommit-App"
     };
 
     if (token) {
         headers["Authorization"] = `Bearer ${token}`;
     }
 
+    const repoUrl = `https://api.github.com/repos/${owner}/${repo}`;
+    console.log(`[GitHub Client] Fetching repo metadata: ${repoUrl}`);
+    
     // 1. Fetch Repository Metadata
-    const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
-    if (!repoRes.ok) throw new Error(`Failed to fetch repo: ${repoRes.statusText}`);
+    const repoRes = await fetch(repoUrl, { headers, cache: 'no-store' });
+    if (!repoRes.ok) {
+        const errorData = await repoRes.json().catch(() => ({}));
+        console.error(`[GitHub Client] API Error (${repoRes.status}):`, errorData.message || repoRes.statusText);
+        throw new Error(errorData.message || `Failed to fetch repo: ${repoRes.statusText}`);
+    }
     const repoData = await repoRes.json();
 
-    // 2. Fetch File Tree (Recursive, truncated)
-    const treeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${repoData.default_branch}?recursive=1`, { headers });
+    // 2. Fetch File Tree (Recursive)
+    // Using the sha of the default branch for a more reliable tree fetch
+    const treeUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/${repoData.default_branch}?recursive=1`;
+    const treeRes = await fetch(treeUrl, { headers, cache: 'no-store' });
     if (!treeRes.ok) throw new Error(`Failed to fetch tree: ${treeRes.statusText}`);
     const treeData = await treeRes.json();
 
     // 3. Helper for fetching file content safely
     async function fetchFileContent(path: string) {
         try {
-            const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, { headers });
+            const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, { headers, cache: 'no-store' });
             if (res.ok) {
                 const json = await res.json();
                 if (json.content) {
@@ -29,7 +39,7 @@ export async function getRepoData(owner: string, repo: string) {
                 }
             }
         } catch (e) {
-            console.warn(`Failed to fetch ${path}`, e);
+            console.warn(`[GitHub Client] Failed to fetch ${path}`, e);
         }
         return "";
     }
@@ -49,16 +59,18 @@ export async function getRepoData(owner: string, repo: string) {
         description: repoData.description,
         stars: repoData.stargazers_count,
         language: repoData.language,
-        tree: (treeData.tree as { path: string }[]).map((t) => t.path).slice(0, 400),
-        readme: readme.slice(0, 10000), // Enriched README context
+        isPrivate: repoData.private,
+        defaultBranch: repoData.default_branch,
+        tree: (treeData.tree as { path: string }[]).map((t) => t.path).slice(0, 1000), // Increased limit for better analysis
+        readme: readme.slice(0, 15000), // Increased limit
         packageJson: packageJson,
-        architecture: architecture.slice(0, 8000),
+        architecture: architecture.slice(0, 10000),
         contributing: contributing.slice(0, 5000)
     };
 }
 
-export async function getImpactRepoData(owner: string, repo: string, targetPath: string) {
-    const token = process.env.GITHUB_TOKEN;
+export async function getImpactRepoData(owner: string, repo: string, targetPath: string, userToken?: string) {
+    const token = userToken || process.env.GITHUB_TOKEN;
     const headers: HeadersInit = {
         "Accept": "application/vnd.github.v3+json",
     };

@@ -1,5 +1,12 @@
 import Link from 'next/link';
 import { Compass } from 'lucide-react';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: "Privacy Policy",
+  description: "Learn how CheckBeforeCommit protects your data and privacy. Read our comprehensive privacy policy.",
+  alternates: { canonical: "/privacy" },
+};
 
 export default function PrivacyPolicyPage() {
   return (
@@ -34,13 +41,12 @@ export default function PrivacyPolicyPage() {
 
             <div>
               <h2 className="text-2xl font-bold text-[#1A1A1A] mb-4">2. Information We Collect</h2>
-              <p className="text-[#1A1A1A]/80 leading-relaxed mb-4">We collect information in various ways, including:</p>
+              <p className="text-[#1A1A1A]/80 leading-relaxed mb-4">We prioritize your privacy by minimizing data collection. We collect:</p>
               <ul className="list-disc list-inside space-y-2 text-[#1A1A1A]/80">
-                <li><strong>Account Information:</strong> Email address, GitHub username, and profile data</li>
-                <li><strong>Repository Data:</strong> Information about repositories you analyze</li>
-                <li><strong>Usage Data:</strong> Pages visited, time spent, interactions with features</li>
-                <li><strong>Technical Data:</strong> IP address, browser type, device information</li>
-                <li><strong>Payment Information:</strong> Billing details (processed securely through Razorpay)</li>
+                <li><strong>Account Information:</strong> Email address and GitHub/GitLab profile data via secure OAuth.</li>
+                <li><strong>Access Tokens:</strong> Personal Access Tokens (PATs) for private repository analysis are stored securely using enterprise-grade encryption via Appwrite preferences and are never shared or exposed.</li>
+                <li><strong>Usage Metadata:</strong> Basic telemetry to improve performance, including repository URLs and analysis timestamps.</li>
+                <li><strong>Technical Data:</strong> IP address and browser type for security monitoring and fraud prevention.</li>
               </ul>
             </div>
 
@@ -72,10 +78,15 @@ export default function PrivacyPolicyPage() {
             </div>
 
             <div>
-              <h2 className="text-2xl font-bold text-[#1A1A1A] mb-4">5. Data Security</h2>
-              <p className="text-[#1A1A1A]/80 leading-relaxed">
-                We implement appropriate technical and organizational measures designed to protect the security of your personal information. However, no method of transmission over the Internet is 100% secure.
+              <h2 className="text-2xl font-bold text-[#1A1A1A] mb-4">5. Data Security & Zero-Storage Policy</h2>
+              <p className="text-[#1A1A1A]/80 leading-relaxed mb-4">
+                We implement a strict <strong>Zero-Storage Policy</strong> for your source code:
               </p>
+              <ul className="list-disc list-inside space-y-2 text-[#1A1A1A]/80">
+                <li><strong>Ephemeral Analysis:</strong> Your source code is analyzed in-memory during a secure session and is deleted immediately after the analysis report is generated.</li>
+                <li><strong>No AI Training:</strong> We never use your private code to train AI models or contribute to any public datasets.</li>
+                <li><strong>Encryption:</strong> All data in transit is protected by TLS 1.3 encryption, and sensitive tokens are encrypted at rest.</li>
+              </ul>
             </div>
 
             <div>

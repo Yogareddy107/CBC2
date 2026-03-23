@@ -14,31 +14,47 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://checkbeforecommit.vercel.app'),
-  title: "CheckBeforeCommit - Code Architecture Analysis",
-  description: "Understand any codebase in minutes. Get instant clarity on system architecture, complexity hot-spots, and integration risks.",
-  keywords: ["code analysis", "github analysis", "software architecture", "technical debt", "repo overview", "developer productivity"],
-  authors: [{ name: "CheckBeforeCommit Team" }],
+  title: {
+    default: "CheckBeforeCommit | AI-Powered Architectural Governance & Remediation",
+    template: "%s | CheckBeforeCommit"
+  },
+  description: "Transform your engineering with Remediation-as-Code. Automate architectural governance, resolve technical debt with AI, and visualize codebase health trends in real-time.",
+  keywords: [
+    "AI Code Analysis", 
+    "Architectural Governance", 
+    "Remediation-as-Code", 
+    "Technical Debt Management", 
+    "Codebase Health Visualization", 
+    "GitLab Architecture Analysis", 
+    "GitHub App PR Governance",
+    "Auto-Remediation PRs",
+    "Enterprise Technical Debt",
+    "Dependency Blast Radius"
+  ],
+  authors: [{ name: "CheckBeforeCommit" }],
+  creator: "CheckBeforeCommit",
   openGraph: {
     type: "website",
     locale: "en_US",
     url: "/",
-    title: "CheckBeforeCommit - Code Architecture Analysis",
-    description: "Understand any codebase in minutes. Get instant clarity on system architecture, complexity hot-spots, and integration risks.",
+    title: "CheckBeforeCommit | AI-Powered Architectural Governance & Remediation",
+    description: "Automate architectural governance and technical debt remediation. Get the 'Magic Fix' for your codebase today.",
     siteName: "CheckBeforeCommit",
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "CheckBeforeCommit - Understand Codebases Instantly",
+        alt: "CheckBeforeCommit AI Architectural Intelligence",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "CheckBeforeCommit - Code Architecture Analysis",
-    description: "Understand any codebase in minutes. Get instant clarity on system architecture, complexity hot-spots, and integration risks.",
+    title: "CheckBeforeCommit | AI-Powered Architectural Governance",
+    description: "Automate architectural governance and resolve technical debt with AI. The future of code quality is here.",
     images: ["/og-image.png"],
+    creator: "@CheckBeforeCommit",
   },
   icons: {
     icon: "/favicon.svg",
@@ -47,6 +63,47 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
   },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+};
+
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "CheckBeforeCommit",
+  "url": process.env.NEXT_PUBLIC_APP_URL || "https://checkbeforecommit.vercel.app",
+  "logo": `${process.env.NEXT_PUBLIC_APP_URL || 'https://checkbeforecommit.vercel.app'}/favicon.svg`,
+  "description": "AI-powered architectural governance and remediation platform for modern engineering teams.",
+  "sameAs": [],
+  "contactPoint": {
+    "@type": "ContactPoint",
+    "email": "teamintrasphere@gmail.com",
+    "contactType": "customer support"
+  }
+};
+
+const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "CheckBeforeCommit",
+  "url": process.env.NEXT_PUBLIC_APP_URL || "https://checkbeforecommit.vercel.app",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": {
+      "@type": "EntryPoint",
+      "urlTemplate": `${process.env.NEXT_PUBLIC_APP_URL || 'https://checkbeforecommit.vercel.app'}/dashboard?url={search_term_string}`
+    },
+    "query-input": "required name=search_term_string"
+  }
 };
 
 export default function RootLayout({
@@ -56,6 +113,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 import { createSessionClient } from '@/lib/appwrite';
 import { db } from '@/lib/db';
 import { conversations, messages } from '@/lib/db/schema';

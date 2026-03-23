@@ -38,6 +38,10 @@
 }
 
 /* Base styles */
+html {
+  scroll-behavior: smooth;
+}
+
 :root {
   --background: #FFFDF6;
   --foreground: #1A1A1A;
@@ -49,6 +53,7 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  scrollbar-gutter: stable;
 }
 
 /* Custom Utilities */

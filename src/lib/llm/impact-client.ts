@@ -1,9 +1,10 @@
 import { generateObject } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { z } from 'zod';
+import { buildDependencyGraph, extractDependencies, resolveDependency } from '../analysis/dependency-graph';
 
 const openai = createOpenAI({
-    apiKey: process.env.OPENAI_API_KEY || '',
+    apiKey: process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || '',
 });
 
 export const ImpactSchema = z.object({
@@ -27,20 +28,33 @@ export type ImpactResult = z.infer<typeof ImpactSchema>;
 const SYSTEM_PROMPT = `
 You are an elite senior principal engineer performing a Change Impact Analysis on a specific file within a GitHub repository.
 
-Your task is to analyze the provided target file content and the broader repository context (directory tree, package.json dependencies, and file relationships) to determine the "blast radius" of making changes to this file.
+Your task is to analyze the provided target file content and the broader repository context to determine the "blast radius" of making changes to this file.
 
-Focus extremely heavily on identifying implicit dependencies, tight coupling, and files that represent logically paired updates (like testing files, configuration registries, or dependent services).
+DETERMINISTIC DATA:
+You will be provided with EXPLICIT dependents found via static analysis of imports. 
+Use this as your foundation and then infer logical/implicit impacts (like side effects, shared state, or downstream UI changes).
 
 OUTPUT REQUIREMENTS:
 - You must strictly output JSON matching the required schema.
-- Be highly specific and technical in your reasoning. Avoid generic advice like "check for errors". Instead say "Modifying the auth payload requires updating the JWT validator in src/middleware".
-- Only mention actual files that exist or are strongly implied to exist based on standard project structures and the provided tree.
+- Be highly specific and technical in your reasoning.
 `;
 
 export async function analyzeImpact(repoData: any): Promise<ImpactResult> {
-    if (!process.env.OPENAI_API_KEY) {
-        throw new Error("OPENAI_API_KEY is not configured.");
+    const apiKey = process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+        throw new Error("AI API key is not configured.");
     }
+
+    // 1. Deterministic Dependency Analysis for the Target File
+    const fileContents: Record<string, string> = {};
+    if (repoData.targetFilePath && repoData.targetFileContent) {
+        fileContents[repoData.targetFilePath] = repoData.targetFileContent;
+    }
+    
+    // We ideally need more file contents to find who depends on US.
+    // However, we can at least find what WE depend on.
+    const myDeps = repoData.targetFileContent ? extractDependencies(repoData.targetFilePath, repoData.targetFileContent) : [];
+    const resolvedDeps = myDeps.map(d => resolveDependency(repoData.targetFilePath, d, repoData.tree)).filter(Boolean);
 
     const promptContext = `
 REPOSITORY CONTEXT:
@@ -49,21 +63,25 @@ Repository: ${repoData.name}
 TARGET FILE TO ANALYZE:
 File Path: ${repoData.targetFilePath}
 
+STATIC ANALYSIS DATA:
+- Files that ${repoData.targetFilePath} DEPENDS ON: ${JSON.stringify(resolvedDeps)}
+Note: Changes to the target file might break these dependencies if interfaces change.
+
 --- TARGET FILE CONTENT START ---
 ${repoData.targetFileContent ? repoData.targetFileContent : "(Empty or non-text file)"}
 --- TARGET FILE CONTENT END ---
 
-PROJECT TREE SAMPLE (For finding dependents):
-${repoData.tree.join('\n')}
+PROJECT TREE SAMPLE:
+${repoData.tree.slice(0, 100).join('\n')}
 
 PACKAGE.JSON DEPENDENCIES:
-${repoData.packageJson ? repoData.packageJson.slice(0, 1000) : "Not available"}
+${repoData.packageJson ? repoData.packageJson.slice(0, 500) : "Not available"}
 
 Analyze the impact of modifying this specific target file.
 `;
 
     try {
-        console.log(`Starting LLM impact analysis for ${repoData.targetFilePath}...`);
+        console.log(`[Impact Client] Starting LLM impact analysis for ${repoData.targetFilePath}...`);
         const { object } = await generateObject({
             model: openai('gpt-4o-mini'),
             schema: ImpactSchema,
@@ -71,10 +89,10 @@ Analyze the impact of modifying this specific target file.
             prompt: promptContext,
         });
         
-        console.log(`Impact Analysis completed for ${repoData.targetFilePath}.`);
+        console.log(`[Impact Client] Analysis completed for ${repoData.targetFilePath}.`);
         return object;
     } catch (error) {
-        console.error("LLM Impact Analysis failed:", error);
-        throw new Error("Failed to generate impact analysis. Please try again.");
+        console.error("[Impact Client] LLM Analysis failed:", error);
+        throw new Error("Failed to generate impact analysis.");
     }
 }

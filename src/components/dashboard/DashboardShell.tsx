@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { ErrorBoundary } from '../ErrorBoundary';
+import { MaintenanceModal } from './MaintenanceModal';
 
 interface DashboardShellProps {
   user: { $id: string; email: string } | null;
@@ -15,6 +16,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
+      <MaintenanceModal />
       {/* Sidebar (Fixed width on desktop) */}
       <div className="hidden lg:block w-72 shrink-0 h-screen border-r border-slate-200 sticky top-0">
         <Sidebar open={false} />

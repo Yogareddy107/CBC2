@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { 
     Users, Layout, Clock, ExternalLink, 
     CheckCircle2, AlertCircle, BookOpen, 
-    TrendingUp, Plus, Loader2, Settings, LayoutDashboard, User
+    TrendingUp, Plus, Loader2, Settings, LayoutDashboard, User, Bell, ShieldCheck
 } from 'lucide-react';
-import { getTeamAnalyses, getTeamChecklist, toggleChecklistItem, getUserTeams } from '../actions';
+import { getTeamAnalyses, getTeamChecklist, toggleChecklistItem, getUserTeams, getTeamMembers, getTeamStats, getTeamHealthTrends } from '../actions';
+import { HealthTrendChart } from '@/components/dashboard/HealthTrendChart';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -20,6 +21,8 @@ export default function TeamDashboardPage() {
     const [analyses, setAnalyses] = useState<any[]>([]);
     const [teamInfo, setTeamInfo] = useState<any>(null);
     const [members, setMembers] = useState<any[]>([]);
+    const [stats, setStats] = useState<any>({ totalAnalyses: 0, filesReviewed: 0, avgMaturity: '0%', highRiskAlerts: 0 });
+    const [trends, setTrends] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -30,9 +33,12 @@ export default function TeamDashboardPage() {
 
     const loadDashboardData = async () => {
         setLoading(true);
-        const [analysisRes, teamsRes] = await Promise.all([
+        const [analysisRes, teamsRes, membersRes, statsRes, trendsRes] = await Promise.all([
             getTeamAnalyses(teamId),
-            getUserTeams()
+            getUserTeams(),
+            getTeamMembers(teamId),
+            getTeamStats(teamId),
+            getTeamHealthTrends(teamId)
         ]);
 
         if (analysisRes.success) setAnalyses(analysisRes.analyses || []);
@@ -41,8 +47,9 @@ export default function TeamDashboardPage() {
             setTeamInfo(currentTeam);
         }
         
-        // Mocking member count for now until S4 is built
-        setMembers([{}, {}, {}]); 
+        if (membersRes.success) setMembers(membersRes.members || []);
+        if (statsRes.success) setStats(statsRes.stats);
+        if (trendsRes.success) setTrends(trendsRes.trends || []);
         
         setLoading(false);
     };
@@ -60,37 +67,52 @@ export default function TeamDashboardPage() {
             <main className="max-w-7xl mx-auto px-6 py-12 space-y-12">
                 
                 {/* Team Header */}
-                <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 pb-12 border-b border-slate-200">
+                <header className="text-center space-y-10">
                     <div className="space-y-4">
-                        <div className="flex items-center gap-4">
-                            <div className="w-16 h-16 rounded-[2rem] bg-slate-900 text-white flex items-center justify-center text-3xl font-black shadow-2xl shadow-slate-900/20">
-                                {teamInfo?.teamName?.[0].toUpperCase()}
-                            </div>
-                            <div>
-                                <h1 className="text-4xl font-black tracking-tighter text-slate-900">{teamInfo?.teamName}</h1>
-                                <div className="flex items-center gap-4 mt-1">
-                                    <div className="flex items-center gap-1.5 text-sm font-bold text-slate-400">
-                                        <Users className="w-4 h-4" /> {members.length} Members
-                                    </div>
-                                    <div className="w-1 h-1 rounded-full bg-slate-200" />
-                                    <div className="flex items-center gap-1.5 text-sm font-bold text-[#FF7D29]">
-                                         {analyses.length} Analyses
-                                    </div>
-                                </div>
+                        <div className="w-20 h-20 rounded-[2.5rem] bg-slate-900 text-white flex items-center justify-center text-4xl font-black shadow-2xl shadow-slate-900/20 mx-auto transition-transform hover:scale-110">
+                            {teamInfo?.teamName?.[0].toUpperCase()}
+                        </div>
+                        <div className="space-y-2">
+                            <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-[#1A1A1A] leading-tight">
+                                Welcome to <span className="text-[#FF7D29] italic">{teamInfo?.teamName}.</span>
+                            </h1>
+                            <div className="flex items-center justify-center gap-6 text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">
+                                <span className="flex items-center gap-2">
+                                    <Users className="w-4 h-4 text-slate-300" /> {members.length} Members
+                                </span>
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+                                <span className="flex items-center gap-2">
+                                    <LayoutDashboard className="w-4 h-4 text-slate-300" /> {stats.totalAnalyses} Analyses
+                                </span>
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+                                <span className="flex items-center gap-2 text-emerald-600/80">
+                                    <ShieldCheck className="w-4 h-4" /> Secure Analysis
+                                </span>
+                                {teamInfo?.role === 'admin' && (
+                                    <>
+                                        <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+                                        <span className="flex items-center gap-2 py-1 px-3 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100">
+                                            <ShieldCheck className="w-3.5 h-3.5" /> Workspace Admin
+                                        </span>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </div>
                     
-                    <div className="flex items-center gap-3">
-                        <Button variant="outline" className="rounded-2xl h-12 px-6 font-bold border-slate-200 bg-white" asChild>
-                            <Link href={`/team/${teamId}/settings`}>
-                                <Settings className="w-4 h-4 mr-2" /> Team Settings
+                    <div className="flex flex-wrap items-center justify-center gap-3">
+                        <Button variant="outline" className="rounded-2xl h-12 px-6 font-bold border-slate-200 bg-white hover:bg-slate-50 transition-all shadow-sm" asChild>
+                            <Link href={`/team/${teamId}/settings/notifications`}>
+                                <Bell className="w-4 h-4 mr-2 text-slate-400" /> Sync Intelligence
                             </Link>
                         </Button>
-                        <Button className="rounded-2xl h-12 px-8 font-bold bg-[#FF7D29] text-white hover:bg-[#E66D1E] shadow-xl shadow-[#FF7D29]/20" asChild>
-                            <Link href="/">
-                                <Plus className="w-5 h-5 mr-2" /> Analyze New Repo
+                        <Button variant="outline" className="rounded-2xl h-12 px-6 font-bold border-slate-200 bg-white hover:bg-slate-50 transition-all shadow-sm" asChild>
+                            <Link href={`/team/${teamId}/settings`}>
+                                <Settings className="w-4 h-4 mr-2 text-slate-400" /> Settings
                             </Link>
+                        </Button>
+                        <Button className="rounded-2xl h-12 px-8 font-bold bg-[#FF7D29] text-white hover:bg-[#E66D1E] shadow-xl shadow-[#FF7D29]/20 transition-all active:scale-95" onClick={() => window.location.href = `/?teamId=${teamId}`}>
+                            <Plus className="w-5 h-5 mr-2" /> Analyze New Repo
                         </Button>
                     </div>
                 </header>
@@ -99,6 +121,16 @@ export default function TeamDashboardPage() {
                     
                     {/* Shared Library */}
                     <div className="lg:col-span-2 space-y-8">
+                        {/* Health Trend Chart */}
+                            <div className="animate-in fade-in slide-in-from-top-4 duration-700 space-y-4">
+                                <div className="flex items-center justify-between px-2">
+                                    <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-400">Architectural Health Tracking</h3>
+                                    <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-100 text-[9px] font-bold">1.0 Real-time</Badge>
+                                </div>
+                                <HealthTrendChart data={trends} />
+                                <p className="text-[10px] text-slate-400 font-medium px-2 italic">Visualizing codebase maturity vs. architectural adherence over time.</p>
+                            </div>
+
                         <div className="flex items-center justify-between">
                             <h2 className="text-2xl font-black tracking-tight text-slate-900 flex items-center gap-3">
                                 <Layout className="w-6 h-6 text-slate-400" /> Shared Reports
@@ -121,9 +153,8 @@ export default function TeamDashboardPage() {
                                 {analyses.map((a) => {
                                     const repoName = a.repo_url.split('/').pop() || a.repo_url;
                                     const result = a.result as any;
-                                    // Simulated risk and counts for now until aggregated properly
-                                    const risk = result?.securityOverview?.riskLevel || 'Low';
-                                    const maturity = result?.modernityMetrics?.score || '85%';
+                                    const risk = result?.riskAndDebt?.couplingRisk?.level || 'Low';
+                                    const maturity = result?.healthBreakdown?.score ? `${result.healthBreakdown.score}%` : '85%';
                                     
                                     return (
                                         <Link 
@@ -184,19 +215,19 @@ export default function TeamDashboardPage() {
                                 <div>
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-2">Total Analyses</p>
                                     <div className="flex items-end gap-3 text-5xl font-black tracking-tighter">
-                                        {analyses.length}
-                                        <Badge className="bg-emerald-500/10 text-emerald-500 border-none text-xs h-6 mb-1.5">+12%</Badge>
+                                        {stats.totalAnalyses}
+                                        <Badge className="bg-emerald-500/10 text-emerald-500 border-none text-xs h-6 mb-1.5">Active</Badge>
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-6 pt-10 border-t border-white/5">
                                     <div>
                                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Avg Maturity</p>
-                                        <p className="text-xl font-bold">82%</p>
+                                        <p className="text-xl font-bold">{stats.avgMaturity}</p>
                                     </div>
                                     <div>
-                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Files Reviewed</p>
-                                        <p className="text-xl font-bold">142</p>
+                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">High Risks</p>
+                                        <p className="text-xl font-bold text-rose-400">{stats.highRiskAlerts}</p>
                                     </div>
                                 </div>
                             </div>
@@ -209,14 +240,28 @@ export default function TeamDashboardPage() {
                                 <Link href={`/team/${teamId}/members`} className="text-xs font-bold text-[#FF7D29] hover:underline">View All</Link>
                             </div>
                             <div className="flex -space-x-3 overflow-hidden">
-                                {[1,2,3,4,5].map(i => (
-                                    <div key={i} className="w-12 h-12 rounded-2xl border-4 border-white bg-slate-100 flex items-center justify-center text-slate-400 font-bold shadow-sm">
-                                        <User className="w-5 h-5" />
+                                {members.slice(0, 5).map((m, i) => (
+                                    <div 
+                                        key={i} 
+                                        className={cn(
+                                            "w-12 h-12 rounded-2xl border-4 border-white flex items-center justify-center text-sm font-bold shadow-sm relative group/avatar",
+                                            m.role === 'architect' ? "bg-slate-900 text-[#FF7D29]" : "bg-slate-100 text-slate-400"
+                                        )}
+                                        title={`${m.email} (${m.role})`}
+                                    >
+                                        {m.avatar}
+                                        {m.role === 'architect' && (
+                                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#FF7D29] rounded-full border-2 border-white flex items-center justify-center shadow-sm">
+                                                <ShieldCheck className="w-2 h-2 text-white" />
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
-                                <div className="w-12 h-12 rounded-2xl border-4 border-white bg-[#FF7D29] text-white flex items-center justify-center text-xs font-bold shadow-sm">
-                                    +5
-                                </div>
+                                {members.length > 5 && (
+                                    <div className="w-12 h-12 rounded-2xl border-4 border-white bg-[#FF7D29] text-white flex items-center justify-center text-xs font-bold shadow-sm">
+                                        +{members.length - 5}
+                                    </div>
+                                )}
                             </div>
                             <Button variant="ghost" className="w-full rounded-2xl h-12 font-bold text-slate-600 hover:bg-slate-50" asChild>
                                 <Link href={`/team/${teamId}/members`}>Manage Invites</Link>

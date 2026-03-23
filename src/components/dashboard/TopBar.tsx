@@ -14,6 +14,7 @@ import {
 import { LogoutConfirmModal } from '@/components/ui/LogoutConfirmModal';
 import { useState } from 'react';
 import { User, LogOut, MessageSquare, Menu } from 'lucide-react';
+import { NotificationBell } from '@/components/NotificationBell';
 
 interface TopBarProps {
     user: {
@@ -60,35 +61,39 @@ export function TopBar({ user, onHamburger }: TopBarProps) {
                     Send Feedback
                 </a>
             </div>
+            
+            <div className="flex items-center gap-2 sm:gap-4">
+                <NotificationBell />
 
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="gap-2 h-8 py-0 px-2 hover:bg-secondary/50">
-                        <span className="text-xs font-medium max-w-[120px] truncate hidden sm:inline-block">
-                            {user?.email}
-                        </span>
-                        <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
-                            <User className="w-3 h-3 text-primary" />
-                        </div>
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 mt-2">
-                    <DropdownMenuLabel className="font-normal">
-                        <div className="flex flex-col space-y-1">
-                            <p className="text-xs font-medium leading-none text-muted-foreground">Account</p>
-                            <p className="text-sm font-semibold leading-none truncate">{user?.email}</p>
-                        </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                        onClick={() => setIsLogoutModalOpen(true)}
-                        className="text-destructive focus:text-destructive cursor-pointer gap-2"
-                    >
-                        <LogOut className="w-4 h-4" />
-                        <span>Log Out</span>
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="gap-2 h-8 py-0 px-2 hover:bg-secondary/50">
+                            <span className="text-xs font-medium max-w-[120px] truncate hidden sm:inline-block">
+                                {user?.email}
+                            </span>
+                            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+                                <User className="w-3 h-3 text-primary" />
+                            </div>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56 mt-2">
+                        <DropdownMenuLabel className="font-normal">
+                            <div className="flex flex-col space-y-1">
+                                <p className="text-xs font-medium leading-none text-muted-foreground">Account</p>
+                                <p className="text-sm font-semibold leading-none truncate">{user?.email}</p>
+                            </div>
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                            onClick={() => setIsLogoutModalOpen(true)}
+                            className="text-destructive focus:text-destructive cursor-pointer gap-2"
+                        >
+                            <LogOut className="w-4 h-4" />
+                            <span>Log Out</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
 
             <LogoutConfirmModal
                 isOpen={isLogoutModalOpen}

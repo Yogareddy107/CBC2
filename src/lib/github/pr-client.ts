@@ -48,3 +48,25 @@ export async function getPRData(owner: string, repo: string, prNumber: string) {
         deletions: prData.deletions
     };
 }
+
+export async function postPRComment(owner: string, repo: string, prNumber: string, body: string) {
+    const token = process.env.GITHUB_TOKEN;
+    if (!token) throw new Error("GITHUB_TOKEN not configured for commenting.");
+
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/comments`, {
+        method: 'POST',
+        headers: {
+            "Accept": "application/vnd.github.v3+json",
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ body })
+    });
+
+    if (!res.ok) {
+        const error = await res.text();
+        throw new Error(`Failed to post PR comment: ${error}`);
+    }
+
+    return await res.json();
+}

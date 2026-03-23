@@ -1,40 +1,66 @@
-import { NextRequest } from 'next/server';
+// Simple in-memory rate limiter for Server Actions
+// Note: In a multi-instance production environment, use Redis (e.g., Upstash) for shared state.
 
-// In-memory store for rate limiting (Note: This will reset on server restarts)
-// For a production environment with many users, use Redis (e.g., Upstash) for persistence.
-const rateLimitStore = new Map<string, { count: number; lastRequest: number }>();
+const cache = new Map<string, { count: number; resetTime: number }>();
 
-interface RateLimitConfig {
+export interface RateLimitResult {
+    success: boolean;
     limit: number;
-    windowMs: number;
+    remaining: number;
+    reset: number;
 }
 
-export async function rateLimit(
-    request: NextRequest,
-    config: RateLimitConfig = { limit: 10, windowMs: 60 * 1000 } // Default: 10 requests per minute
-) {
-    const ip = request.headers.get('x-forwarded-for') || 'anonymous';
+export function rateLimit(
+    identifier: string,
+    limit: number = 10,
+    windowMs: number = 60 * 1000 // 1 minute
+): RateLimitResult {
     const now = Date.now();
-    const userData = rateLimitStore.get(ip) || { count: 0, lastRequest: now };
+    const record = cache.get(identifier);
 
-    // Reset count if window has passed
-    if (now - userData.lastRequest > config.windowMs) {
-        userData.count = 0;
-        userData.lastRequest = now;
-    }
-
-    userData.count++;
-    rateLimitStore.set(ip, userData);
-
-    if (userData.count > config.limit) {
+    if (!record || now > record.resetTime) {
+        // New window
+        const newRecord = {
+            count: 1,
+            resetTime: now + windowMs,
+        };
+        cache.set(identifier, newRecord);
         return {
-            isLimited: true,
-            remaining: 0,
+            success: true,
+            limit,
+            remaining: limit - 1,
+            reset: newRecord.resetTime,
         };
     }
 
+    if (record.count >= limit) {
+        // Limit exceeded
+        return {
+            success: false,
+            limit,
+            remaining: 0,
+            reset: record.resetTime,
+        };
+    }
+
+    // Increment count
+    record.count += 1;
     return {
-        isLimited: false,
-        remaining: config.limit - userData.count,
+        success: true,
+        limit,
+        remaining: limit - record.count,
+        reset: record.resetTime,
     };
+}
+
+// Cleanup expired entries periodically to prevent memory leaks
+if (typeof setInterval !== 'undefined') {
+    setInterval(() => {
+        const now = Date.now();
+        for (const [key, record] of cache.entries()) {
+            if (now > record.resetTime) {
+                cache.delete(key);
+            }
+        }
+    }, 5 * 60 * 1000); // Every 5 minutes
 }

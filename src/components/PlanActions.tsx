@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-export default function PlanActions({ userId, currentSub, planId = 'pro_monthly', label = 'Upgrade to Pro Plan — $10 / month' }: { userId: string; currentSub: { plan: string; status: string } | null; planId?: string; label?: string }) {
+export default function PlanActions({ userId, currentSub, planId = 'pro_monthly', label = 'Upgrade to Professional Plan — $12 / month' }: { userId: string; currentSub: { plan: string; status: string } | null; planId?: string; label?: string }) {
     const [loading, setLoading] = useState(false);
 
     async function loadScript(src: string) {

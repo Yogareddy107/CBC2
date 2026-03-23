@@ -1,6 +1,4 @@
-'use client';
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Github, ExternalLink, Trash2, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
@@ -23,7 +21,12 @@ interface HistoryTableProps {
 export function HistoryTable({ initialAnalyses }: HistoryTableProps) {
     const [analyses, setAnalyses] = useState(initialAnalyses);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [mounted, setMounted] = useState(false);
     const router = useRouter();
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const handleDelete = async (id: string) => {
         if (!window.confirm('Are you sure you want to delete this analysis?')) {
@@ -83,7 +86,7 @@ export function HistoryTable({ initialAnalyses }: HistoryTableProps) {
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 text-[#1A1A1A]/50 text-xs font-medium whitespace-nowrap">
-                                    {date}
+                                    {mounted ? date : null}
                                 </td>
                                 <td className="px-6 py-4">
                                     <Badge

@@ -1,32 +1,53 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo, useCallback } from 'react';
 import type { AnalysisResult } from '@/lib/llm/client';
 import {
     Activity, ShieldCheck, Zap, Layout, GitBranch,
-    Play, AlertTriangle, CheckCircle2, XCircle,
+    Play, AlertTriangle, CheckCircle2, XCircle, Shield,
     Thermometer, Component, ArrowRight, BookOpen, Globe, Construction,
-    MessageSquare, CheckSquare, CheckCircle
+    MessageSquare, CheckSquare, CheckCircle, FolderOpen, Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { generateRemediationPR } from '@/app/analyze/actions';
+import { Sparkles } from 'lucide-react';
 import { CommentSystem } from './CommentSystem';
 import { updateFileReview } from '@/app/team/actions';
+import { predictImpact } from '@/app/analyze/actions';
+import { ImpactExplorer } from './ImpactExplorer';
+import { Progress } from './ui/progress';
+import { PreCommitGuide } from './PreCommitGuide';
+import { IDEGuide } from './IDEGuide';
+import { ModernizationRoadmap } from './ModernizationRoadmap';
+import { MaturityBenchmark } from './MaturityBenchmark';
+import { ArchitectureSandbox } from './ArchitectureSandbox';
 
 // --- Shared Elements ---
 function ReviewToggle({ 
     analysisId, 
     teamId, 
     filePath, 
-    isReviewed: initialReviewed 
+    reviews = [] 
 }: { 
     analysisId: string, 
     teamId?: string, 
     filePath: string, 
-    isReviewed?: boolean 
+    reviews?: any[] 
 }) {
-    const [reviewed, setReviewed] = useState(initialReviewed);
+    const review = reviews.find(r => r.file_path === filePath);
+    const [isReviewed, setIsReviewed] = useState(!!review);
+    const [reviewer, setReviewer] = useState<any>(review);
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (review) {
+            setIsReviewed(true);
+            setReviewer(review);
+        }
+    }, [review]);
 
     if (!teamId) return null;
 
@@ -38,24 +59,41 @@ function ReviewToggle({
             filePath,
             status: 'reviewed'
         });
-        if (res.success) setReviewed(true);
+        if (res.success) {
+            setIsReviewed(true);
+            // We don't have the full reviewer object here immediately unless we fetch it 
+            // but for now we can show "Just now" or Similar. 
+            // In a real app, we'd probably re-fetch or use a shared state.
+        }
         setLoading(false);
     };
 
     return (
-        <button 
-            onClick={handleToggle}
-            disabled={reviewed || loading}
-            className={cn(
-                "flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider transition-all",
-                reviewed 
-                    ? "bg-green-500/10 text-green-600 border border-green-500/20" 
-                    : "bg-secondary text-muted-foreground hover:bg-secondary/80 border border-transparent"
+        <div className="flex items-center gap-2">
+            {isReviewed && reviewer && (
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-green-50 border border-green-100 shadow-sm animate-in fade-in slide-in-from-right-2">
+                    <div className="w-5 h-5 rounded-md bg-slate-900 text-white flex items-center justify-center text-[8px] font-black">
+                        {reviewer.reviewerAvatar || 'U'}
+                    </div>
+                    <span className="text-[10px] font-black text-green-700 truncate max-w-[80px]">
+                        {reviewer.reviewerName}
+                    </span>
+                </div>
             )}
-        >
-            {reviewed ? <CheckCircle className="w-3 h-3" /> : <CheckSquare className="w-3 h-3" />}
-            {reviewed ? 'Reviewed' : 'Mark Reviewed'}
-        </button>
+            <button 
+                onClick={handleToggle}
+                disabled={isReviewed || loading}
+                className={cn(
+                    "flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                    isReviewed 
+                        ? "text-green-600 hidden" // Hide button if reviewed and we show the badge above
+                        : "bg-slate-100 text-slate-500 hover:bg-[#FF7D29] hover:text-white border border-slate-200"
+                )}
+            >
+                {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckSquare className="w-3 h-3" />}
+                Mark Reviewed
+            </button>
+        </div>
     );
 }
 function SectionHeader({ 
@@ -109,7 +147,7 @@ function Card({ children, className, variant = "default" }: { children: React.Re
 }
 
 // --- 1. TL;DR ---
-function TLDRSection({ data, repoUrl }: { data: AnalysisResult['tldr'], repoUrl: string }) {
+const TLDRSection = memo(function TLDRSection({ data, repoUrl }: { data: AnalysisResult['tldr'], repoUrl: string }) {
     // Parse owner/repo from URL
     let owner = "Unknown";
     let repoName = "Repository";
@@ -177,10 +215,10 @@ function TLDRSection({ data, repoUrl }: { data: AnalysisResult['tldr'], repoUrl:
             </div>
         </div>
     );
-}
+});
 
 // --- 2. Engineering Maturity Index ---
-function MaturityScale({ data, onComment, analysisId, teamId }: { data: AnalysisResult['maturity'], onComment: () => void, analysisId?: string, teamId?: string }) {
+const MaturityScale = memo(function MaturityScale({ data, onComment, analysisId, teamId }: { data: AnalysisResult['maturity'], onComment: () => void, analysisId?: string, teamId?: string }) {
     const stages = ['Prototype', 'Structured early-stage', 'Growing', 'Production-Grade'];
     const currentIndex = stages.indexOf(data.rating);
 
@@ -241,12 +279,12 @@ function MaturityScale({ data, onComment, analysisId, teamId }: { data: Analysis
             </div>
         </section>
     );
-}
+});
 
 // --- 3. 15-Minute Onboarding Path ---
-function OnboardingPath({ data, onComment, analysisId, teamId }: { data: AnalysisResult['onboarding'], onComment: () => void, analysisId?: string, teamId?: string }) {
+const OnboardingPath = memo(function OnboardingPath({ data, onComment, analysisId, teamId, reviews = [] }: { data: AnalysisResult['onboarding'], onComment: () => void, analysisId?: string, teamId?: string, reviews?: any[] }) {
     return (
-        <section>
+        <section className="group">
             <SectionHeader title="🚀 15-Minute Onboarding Path" icon={Globe} onCommentClick={onComment} />
 
             <div className="grid md:grid-cols-2 gap-8 mb-8">
@@ -268,7 +306,7 @@ function OnboardingPath({ data, onComment, analysisId, teamId }: { data: Analysi
                                     <span className="text-sm font-bold font-mono bg-blue-50 text-blue-700 px-3 py-1.5 rounded-xl border border-blue-100 break-all">
                                         {item.file}
                                     </span>
-                                    <ReviewToggle analysisId={analysisId || ''} teamId={teamId} filePath={item.file} />
+                                    <ReviewToggle analysisId={analysisId || ''} teamId={teamId} filePath={item.file} reviews={reviews} />
                                 </div>
                                 <p className="text-sm text-muted-foreground leading-relaxed pl-1 transition-colors group-hover/item:text-foreground">
                                     {item.reason}
@@ -296,7 +334,7 @@ function OnboardingPath({ data, onComment, analysisId, teamId }: { data: Analysi
                                     <span className="text-sm font-bold font-mono bg-purple-50 text-purple-700 px-3 py-1.5 rounded-xl border border-purple-100 break-all">
                                         {item.file}
                                     </span>
-                                    <ReviewToggle analysisId={analysisId || ''} teamId={teamId} filePath={item.file} />
+                                    <ReviewToggle analysisId={analysisId || ''} teamId={teamId} filePath={item.file} reviews={reviews} />
                                 </div>
                                 <p className="text-sm text-muted-foreground leading-relaxed pl-1 transition-colors group-hover/item:text-foreground">
                                     {item.reason}
@@ -345,7 +383,7 @@ function OnboardingPath({ data, onComment, analysisId, teamId }: { data: Analysi
                         <div key={i} className="group bg-white p-5 rounded-3xl border border-red-200 hover:border-red-500 transition-all hover:bg-red-50/30">
                             <div className="flex items-center justify-between gap-4 mb-3">
                                 <span className="text-sm font-bold font-mono text-red-700 truncate">{item.file}</span>
-                                <ReviewToggle analysisId={analysisId || ''} teamId={teamId} filePath={item.file} />
+                                <ReviewToggle analysisId={analysisId || ''} teamId={teamId} filePath={item.file} reviews={reviews} />
                             </div>
                             <p className="text-[11px] text-red-900/60 leading-relaxed italic border-l-2 border-red-200 pl-3">
                                 "{item.reason}"
@@ -356,10 +394,10 @@ function OnboardingPath({ data, onComment, analysisId, teamId }: { data: Analysi
             </div>
         </section>
     );
-}
+});
 
 // --- 4. Change Blast Radius ---
-function BlastRadius({ data, onComment, analysisId, teamId }: { data: AnalysisResult['blastRadius'], onComment: () => void, analysisId?: string, teamId?: string }) {
+const BlastRadius = memo(function BlastRadius({ data, onComment, analysisId, teamId, impactfulFiles, reviews = [] }: { data: AnalysisResult['blastRadius'], onComment: () => void, analysisId?: string, teamId?: string, impactfulFiles?: AnalysisResult['impactfulFiles'], reviews?: any[] }) {
     return (
         <section className="group">
             <SectionHeader title="⚡ Change Blast Radius" icon={GitBranch} onCommentClick={onComment} />
@@ -389,7 +427,7 @@ function BlastRadius({ data, onComment, analysisId, teamId }: { data: AnalysisRe
                                             <span className="text-[10px] font-black text-red-500/80 uppercase tracking-tighter">Impacts {item.impactsModules} Modules</span>
                                         </div>
                                     </div>
-                                    <ReviewToggle analysisId={analysisId || ''} teamId={teamId} filePath={item.file} />
+                                    <ReviewToggle analysisId={analysisId || ''} teamId={teamId} filePath={item.file} reviews={reviews} />
                                 </div>
                                 <p className="text-xs text-slate-500 font-medium leading-relaxed italic border-l-2 border-red-500/20 pl-4 py-1 group-hover/item:text-slate-800 transition-colors">
                                     "{item.reason}"
@@ -399,38 +437,60 @@ function BlastRadius({ data, onComment, analysisId, teamId }: { data: AnalysisRe
                     </div>
                 </div>
 
-                <div className="relative p-10 bg-emerald-50/30 border border-emerald-200/50 rounded-[2.5rem] shadow-sm overflow-hidden group-hover:bg-emerald-50 transition-colors duration-500">
-                    <div className="flex items-center justify-between mb-10">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                                <ShieldCheck className="w-5 h-5" />
+                <div className="space-y-10">
+                    <div className="relative p-10 bg-emerald-50/30 border border-emerald-200/50 rounded-[2.5rem] shadow-sm overflow-hidden group-hover:bg-emerald-50 transition-colors duration-500">
+                        <div className="flex items-center justify-between mb-10">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                                    <ShieldCheck className="w-5 h-5" />
+                                </div>
+                                <h3 className="text-xl font-black text-emerald-900 tracking-tight">Safe Zones</h3>
                             </div>
-                            <h3 className="text-xl font-black text-emerald-900 tracking-tight">Safe Zones</h3>
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">Low Diffusion</span>
                         </div>
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">Low Diffusion</span>
+
+                        <div className="grid gap-4">
+                            {data.safeToModify.map((item, i) => (
+                                <div key={i} className="p-6 bg-white/70 backdrop-blur-sm border border-emerald-100 rounded-[2rem] hover:shadow-lg transition-all">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-sm font-black font-mono text-emerald-700 truncate">{item.file}</span>
+                                        <ReviewToggle analysisId={analysisId || ''} teamId={teamId} filePath={item.file} reviews={reviews} />
+                                    </div>
+                                    <p className="text-xs text-emerald-900/60 leading-relaxed font-medium">
+                                        {item.reason}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
                     </div>
 
-                    <div className="grid gap-4">
-                        {data.safeToModify.map((item, i) => (
-                            <div key={i} className="p-6 bg-white/70 backdrop-blur-sm border border-emerald-100 rounded-[2rem] hover:shadow-lg transition-all">
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-sm font-black font-mono text-emerald-700 truncate">{item.file}</span>
-                                    <ReviewToggle analysisId={analysisId || ''} teamId={teamId} filePath={item.file} />
+                    {impactfulFiles && impactfulFiles.length > 0 && (
+                        <div className="relative p-10 bg-blue-50/30 border border-blue-200/50 rounded-[2.5rem] shadow-sm">
+                            <div className="flex items-center gap-3 mb-8">
+                                <div className="w-10 h-10 rounded-2xl bg-blue-500 text-white flex items-center justify-center shadow-lg shadow-blue-500/20">
+                                    <Component className="w-5 h-5" />
                                 </div>
-                                <p className="text-xs text-emerald-900/60 leading-relaxed font-medium">
-                                    {item.reason}
-                                </p>
+                                <h3 className="text-xl font-black text-blue-900 tracking-tight">Top Mechanical Hubs</h3>
                             </div>
-                        ))}
-                    </div>
+                            <div className="space-y-3">
+                                {impactfulFiles.map((item, i) => (
+                                    <div key={i} className="flex items-center justify-between p-4 bg-white/60 rounded-2xl border border-blue-100">
+                                        <span className="text-xs font-bold font-mono text-blue-800 truncate max-w-[70%]">{item.file}</span>
+                                        <Badge className="bg-blue-100 text-blue-700 border-none px-2 py-0.5 text-[9px]">Reach: {item.reach}</Badge>
+                                    </div>
+                                ))}
+                            </div>
+                            <p className="mt-4 text-[10px] text-blue-900/50 leading-tight"> Reach indicates how many files depend on this module directly or indirectly. </p>
+                        </div>
+                    )}
                 </div>
             </div>
         </section>
     );
-}
+});
 
 // --- 5. Risk & Debt Summary ---
-function RiskAndDebt({ data, onComment, analysisId, teamId }: { data: AnalysisResult['riskAndDebt'], onComment: () => void, analysisId?: string, teamId?: string }) {
+const RiskAndDebt = memo(function RiskAndDebt({ data, onComment, analysisId, teamId, reviews = [], onAutoFix, fixingId }: { data: AnalysisResult['riskAndDebt'], onComment: () => void, analysisId?: string, teamId?: string, reviews?: any[], onAutoFix: (type: 'violation' | 'debt', index: number) => void, fixingId: string | null }) {
     
     // Status color helper for the table
     const getBadgeColor = (val: string | number) => {
@@ -469,7 +529,7 @@ function RiskAndDebt({ data, onComment, analysisId, teamId }: { data: AnalysisRe
                                 { label: "Maintainability", val: `${data.maintainability.score}/10`, raw: data.maintainability.score, reason: data.maintainability.reason },
                                 { label: "Test Coverage", val: data.testCoverage.level, reason: data.testCoverage.reason },
                                 { label: "Onboarding", val: data.onboardingTime.duration, reason: data.onboardingTime.reason, special: true },
-                                { label: "Refactor Safety", val: data.refactorSafety.level, reason: data.refactorSafety.reason }
+                                { label: "Refactor Safety", val: `${data.refactorSafety.score}%`, raw: data.refactorSafety.score, reason: data.refactorSafety.reason }
                             ].map((row, i) => (
                                 <tr key={i} className="hover:bg-slate-50/50 transition-colors">
                                     <td className="py-5 px-8 text-sm font-bold text-[#1A1A1A]">{row.label}</td>
@@ -500,13 +560,25 @@ function RiskAndDebt({ data, onComment, analysisId, teamId }: { data: AnalysisRe
                 <div className="space-y-4">
                     {data.top3DebtIssues.map((item, i) => (
                         <div key={i} className="group bg-white/60 backdrop-blur-sm p-6 rounded-[2rem] border border-amber-200/50 hover:bg-white transition-all shadow-sm hover:shadow-md">
-                            <div className="flex items-center justify-between gap-6 mb-3">
-                                <div className="flex items-center gap-3">
-                                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 text-amber-700 font-black text-[10px]">{i + 1}</span>
-                                    <span className="text-sm font-black font-mono text-amber-800 break-all">{item.file}</span>
-                                </div>
-                                <ReviewToggle analysisId={analysisId || ''} teamId={teamId} filePath={item.file} />
-                            </div>
+                                    <div className="flex items-center justify-between gap-6 mb-3">
+                                        <div className="flex items-center gap-3">
+                                            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 text-amber-700 font-black text-[10px]">{i + 1}</span>
+                                            <span className="text-sm font-black font-mono text-amber-800 break-all">{item.file}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Button 
+                                                size="sm" 
+                                                variant="ghost" 
+                                                className="h-7 px-2 text-[9px] font-black uppercase tracking-widest text-[#FF7D29] hover:bg-orange-50 rounded-lg flex items-center gap-1"
+                                                onClick={() => onAutoFix('debt', i)}
+                                                disabled={fixingId === `debt-${i}`}
+                                            >
+                                                {fixingId === `debt-${i}` ? <Loader2 className="w-2 h-2 animate-spin" /> : <Sparkles className="w-2 h-2" />}
+                                                Auto-Fix
+                                            </Button>
+                                            <ReviewToggle analysisId={analysisId || ''} teamId={teamId} filePath={item.file} reviews={reviews} />
+                                        </div>
+                                    </div>
                             <p className="text-sm text-amber-900/70 font-medium leading-relaxed">
                                 {item.issue}
                             </p>
@@ -516,10 +588,87 @@ function RiskAndDebt({ data, onComment, analysisId, teamId }: { data: AnalysisRe
             </div>
         </section>
     );
-}
+});
+// --- 5b. Governance Enforcement ---
+const GovernanceSection = memo(function GovernanceSection({ governance, onComment, onAutoFix, fixingId }: { governance?: AnalysisResult['governance'], onComment: () => void, onAutoFix: (type: 'violation' | 'debt', index: number) => void, fixingId: string | null }) {
+    if (!governance || governance.totalRulesChecked === 0) return null;
+
+    const getSeverityColor = (sev: string) => sev === 'Error' ? 'text-red-500 bg-red-500/10 border-red-500/20' : 'text-amber-500 bg-amber-500/10 border-amber-500/20';
+
+    return (
+        <section className="group">
+            <SectionHeader title="🛡️ Architectural Governance" icon={Shield} onCommentClick={onComment} />
+            <div className="bg-white border border-border/40 rounded-[2.5rem] p-10 shadow-sm overflow-hidden mb-8">
+                <div className="flex flex-col md:flex-row items-center gap-12">
+                    <div className="relative flex flex-col items-center">
+                        <div className="w-32 h-32 rounded-full border-8 border-slate-50 flex items-center justify-center relative">
+                            <span className={cn("text-3xl font-black", governance.adherenceScore >= 90 ? "text-emerald-600" : governance.adherenceScore >= 70 ? "text-amber-600" : "text-red-600")}>
+                                {governance.adherenceScore}%
+                            </span>
+                        </div>
+                        <p className="mt-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Adherence Score</p>
+                    </div>
+
+                    <div className="flex-1 space-y-4">
+                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                            <span className="text-sm font-bold text-slate-700">Rules Tracked</span>
+                            <Badge variant="outline" className="bg-white border-slate-200 text-slate-600 font-black">{governance.totalRulesChecked}</Badge>
+                        </div>
+                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                            <span className="text-sm font-bold text-slate-700">Open Violations</span>
+                            <Badge variant="outline" className={cn("font-black", governance.violations.length > 0 ? "bg-red-50 border-red-100 text-red-600" : "bg-emerald-50 border-emerald-100 text-emerald-600")}>
+                                {governance.violations.length}
+                            </Badge>
+                        </div>
+                    </div>
+                </div>
+
+                {governance.violations.length > 0 ? (
+                    <div className="mt-10 space-y-3">
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 px-2">Active Violations</h4>
+                        {governance.violations.map((v, i) => (
+                            <div key={i} className="flex gap-4 p-5 bg-white border border-slate-100 rounded-3xl hover:border-red-200 transition-all shadow-sm">
+                                <AlertTriangle className={cn("w-5 h-5 mt-1 shrink-0", v.severity === 'Error' ? 'text-red-500' : 'text-amber-500')} />
+                                    <div className="flex items-center justify-between w-full">
+                                        <div className="space-y-1">
+                                            <div className="flex items-center gap-2">
+                                                <Badge className={cn("text-[8px] font-black uppercase px-2 py-0", getSeverityColor(v.severity))}>{v.severity}</Badge>
+                                                <span className="text-sm font-black text-slate-800">{v.ruleName}</span>
+                                            </div>
+                                            <p className="text-xs text-slate-500 font-medium">{v.message}</p>
+                                        </div>
+                                        <Button 
+                                            size="sm" 
+                                            className="bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-[#FF7D29] transition-all"
+                                            onClick={() => onAutoFix('violation', i)}
+                                            disabled={fixingId === `violation-${i}`}
+                                        >
+                                            {fixingId === `violation-${i}` ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                                            Magic Fix
+                                        </Button>
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-2">
+                                        <code className="text-[10px] bg-slate-900 text-white px-2 py-0.5 rounded-lg">{v.fromFile}</code>
+                                        <ArrowRight className="w-3 h-3 text-slate-300" />
+                                        <code className="text-[10px] bg-slate-900 text-white px-2 py-0.5 rounded-lg">{v.toFile}</code>
+                                    </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="mt-10 p-10 text-center bg-emerald-50/50 border border-emerald-100 rounded-3xl">
+                        <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-4" />
+                        <h4 className="text-lg font-black text-emerald-900">Architecture is Clean</h4>
+                        <p className="text-sm text-emerald-700/70">No governance violations detected against active policies.</p>
+                    </div>
+                )}
+            </div>
+        </section>
+    );
+});
 
 // --- 6. Final Recommendation ---
-function FinalRecommendation({ data }: { data: AnalysisResult['recommendation'] }) {
+const FinalRecommendation = memo(function FinalRecommendation({ data }: { data: AnalysisResult['recommendation'] }) {
     return (
         <div className="relative overflow-hidden rounded-[3rem] bg-[#0F172A] p-12 shadow-2xl text-white mt-16 border border-white/10">
             {/* Verdict Glow */}
@@ -595,20 +744,370 @@ function FinalRecommendation({ data }: { data: AnalysisResult['recommendation'] 
             </div>
         </div>
     );
+});
+
+// --- 7. Module Purpose Detection ---
+const ModuleInsights = memo(function ModuleInsights({ data }: { data: AnalysisResult['modulePurposes'] }) {
+    if (!data || data.length === 0) return null;
+
+    return (
+        <section className="group">
+            <SectionHeader title="📂 Module Purpose Detection" icon={FolderOpen} />
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {data.map((item, i) => (
+                    <div key={i} className="group/item p-6 bg-white border border-border/40 rounded-[2rem] hover:shadow-lg transition-all border-b-4 border-b-primary/20 hover:border-b-primary/60">
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="w-8 h-8 rounded-xl bg-primary/5 text-primary flex items-center justify-center">
+                                <Activity className="w-4 h-4" />
+                            </div>
+                            <span className="text-xs font-black font-mono text-slate-800 truncate">{item.directory}</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground leading-relaxed font-medium group-hover/item:text-foreground transition-colors">
+                            {item.purpose}
+                        </p>
+                    </div>
+                ))}
+            </div>
+        </section>
+    );
+});
+
+// --- 8. Dependency Graph Summary ---
+const DependencyGraphSection = memo(function DependencyGraphSection({ data }: { data: AnalysisResult['dependencySummary'] }) {
+    if (!data) return null;
+
+    return (
+        <section className="group">
+            <SectionHeader title="🕸️ Dependency Graph Engine" icon={GitBranch} />
+            <div className="grid md:grid-cols-2 gap-8">
+                <div className="bg-white border border-border/40 rounded-[2.5rem] p-8 shadow-sm">
+                    <h3 className="text-lg font-black text-[#1A1A1A] mb-6 flex items-center gap-2">
+                        <Zap className="w-4 h-4 text-primary" />
+                        Top Hub Modules
+                    </h3>
+                    <div className="space-y-4">
+                        {data.topHubs.map((hub, i) => (
+                            <div key={i} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                <span className="text-xs font-bold font-mono text-slate-700 truncate max-w-[70%]">{hub.file}</span>
+                                <Badge className="bg-primary/10 text-primary border-none px-2 py-0.5 text-[9px]">
+                                    {hub.dependents} Dependents
+                                </Badge>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="bg-slate-900 border border-white/10 rounded-[2.5rem] p-8 shadow-2xl text-white relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl pointer-events-none" />
+                    <h3 className="text-lg font-black mb-6 flex items-center gap-2 relative z-10">
+                        <Activity className="w-4 h-4 text-primary" />
+                        Tightly Coupled Clusters
+                    </h3>
+                    <div className="space-y-4 relative z-10">
+                        {data.tightlyCoupledClusters.map((cluster, i) => (
+                            <div key={i} className="p-4 bg-white/5 rounded-2xl border border-white/5">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-sm font-black text-primary">{cluster.name}</span>
+                                    <span className="text-[9px] font-bold opacity-40 uppercase tracking-widest">{cluster.files.length} Files</span>
+                                </div>
+                                <p className="text-[11px] text-slate-400 leading-tight">
+                                    {cluster.description}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </section>
+    );
+});
+
+// --- 9. Health Breakdown ---
+const HealthBreakdownSection = memo(function HealthBreakdownSection({ data }: { data: AnalysisResult['healthBreakdown'] }) {
+    if (!data) return null;
+
+    const metrics = [
+        { label: "Complexity", value: data.metrics.complexity, color: "bg-blue-500" },
+        { label: "Documentation", value: data.metrics.documentation, color: "bg-emerald-500" },
+        { label: "Test Coverage", value: data.metrics.testCoverage, color: "bg-purple-500" },
+        { label: "Modularity", value: data.metrics.modularity, color: "bg-orange-500" },
+    ];
+
+    return (
+        <section className="group">
+            <SectionHeader title="📊 Engineering Health Report" icon={Activity} />
+            <div className="bg-white border border-border/40 rounded-[2.5rem] p-10 shadow-sm">
+                <div className="grid md:grid-cols-2 gap-16 items-center">
+                    <div className="flex flex-col items-center justify-center relative">
+                        <div className="w-40 h-40 rounded-full border-[12px] border-slate-50 flex items-center justify-center relative">
+                             <div className="text-center">
+                                <span className="text-5xl font-black tracking-tighter text-slate-900">{data.score}</span>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Health Score</p>
+                             </div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-8">
+                        {metrics.map((m, i) => (
+                            <div key={i} className="space-y-2">
+                                <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                    <span>{m.label}</span>
+                                    <span className="text-slate-900">{m.value}%</span>
+                                </div>
+                                <Progress value={m.value} className="h-1.5 bg-slate-100" indicatorClassName={m.color} />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="mt-12 p-8 bg-red-50/50 border border-red-100 rounded-[2rem]">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-red-600 mb-4 flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4" />
+                        Critical Gaps to Close
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                        {data.criticalGaps.map((gap, i) => (
+                            <Badge key={i} variant="outline" className="bg-white border-red-200 text-red-600 font-bold px-3 py-1 text-[11px] rounded-xl">
+                                {gap}
+                            </Badge>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </section>
+    );
+});
+
+// --- 10. Pre-commit Risk Simulation ---
+const PreCommitSimulation = memo(function PreCommitSimulation({ analysisId }: { analysisId: string }) {
+    const [simulatedChange, setSimulatedChange] = useState('');
+    const [status, setStatus] = useState<'idle' | 'analyzing' | 'approved' | 'warning'>('idle');
+    const [message, setMessage] = useState('');
+
+    const handleSimulate = async () => {
+        if (!simulatedChange) return;
+        setStatus('analyzing');
+        
+        // Simulate analysis delay
+        await new Promise(r => setTimeout(r, 1500));
+        
+        const res = await predictImpact(analysisId, simulatedChange);
+        if (res.risk === 'HIGH') {
+            setStatus('warning');
+            setMessage(`PRE-COMMIT REJECTED: High-risk change detected in ${simulatedChange}. Affected modules: ${res.reach}.`);
+        } else {
+            setStatus('approved');
+            setMessage(`PRE-COMMIT APPROVED: Change in ${simulatedChange} has low blast radius. No critical safety issues detected.`);
+        }
+    };
+
+    return (
+        <section className="group">
+            <SectionHeader title="🛡️ Pre-commit Guard (Simulation)" icon={ShieldCheck} />
+            <div className="bg-[#0F172A] border border-white/10 rounded-[2.5rem] p-10 shadow-2xl text-white relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/50 via-primary to-primary/50 animate-pulse" />
+                
+                <div className="flex flex-col md:flex-row gap-12 items-center">
+                    <div className="flex-1 space-y-6">
+                        <div className="space-y-2">
+                            <h3 className="text-xl font-black tracking-tight">VCS Safety Hook</h3>
+                            <p className="text-sm text-slate-400 leading-relaxed">
+                                Simulate a git pre-commit hook to see how CBC prevents breaking changes in real-time.
+                            </p>
+                        </div>
+
+                        <div className="flex gap-2">
+                            <Input 
+                                placeholder="Feature-X branch change..."
+                                value={simulatedChange}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSimulatedChange(e.target.value)}
+                                className="bg-white/5 border-white/10 text-white placeholder:text-slate-500 rounded-xl h-12"
+                            />
+                            <Button 
+                                onClick={handleSimulate}
+                                disabled={status === 'analyzing' || !simulatedChange}
+                                className="bg-primary hover:bg-primary/80 text-white font-black px-8 rounded-xl h-12"
+                            >
+                                {status === 'analyzing' ? <Loader2 className="w-4 h-4 animate-spin" /> : "Simulate Change"}
+                            </Button>
+                        </div>
+
+                        {status !== 'idle' && status !== 'analyzing' && (
+                            <div className={cn(
+                                "p-6 rounded-2xl border transition-all animate-in zoom-in-95 duration-300",
+                                status === 'approved' ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-red-500/10 border-red-500/20 text-red-400"
+                            )}>
+                                <div className="flex items-center gap-3 mb-2">
+                                    {status === 'approved' ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
+                                    <span className="text-sm font-black uppercase tracking-widest">{status === 'approved' ? 'Success' : 'Safety Warning'}</span>
+                                </div>
+                                <p className="text-sm font-medium leading-relaxed">{message}</p>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="shrink-0 w-48 h-48 rounded-[3rem] bg-white/5 border border-white/10 flex items-center justify-center relative group-hover:scale-105 transition-transform duration-700">
+                         <div className={cn(
+                             "w-24 h-24 rounded-full blur-2xl absolute opacity-20 transition-all duration-500",
+                             status === 'approved' ? "bg-emerald-500 opacity-40" : status === 'warning' ? "bg-red-500 opacity-40" : "bg-primary"
+                         )} />
+                         <ShieldCheck className={cn(
+                             "w-16 h-16 relative z-10 transition-colors duration-500",
+                             status === 'approved' ? "text-emerald-500" : status === 'warning' ? "text-red-500" : "text-white/20"
+                         )} />
+                    </div>
+                </div>
+            </div>
+        </section>
+    );
+});
+
+// --- 11. Onboarding Reading Tree ---
+const ReadingTree = memo(function ReadingTree({ data }: { data: AnalysisResult['onboarding'] }) {
+    return (
+        <section className="group">
+            <SectionHeader title="🌳 Onboarding Reading Tree" icon={BookOpen} />
+            <div className="p-10 bg-white border border-border/40 rounded-[2.5rem] shadow-sm relative overflow-hidden">
+                <div className="relative z-10">
+                    <div className="flex flex-col gap-6">
+                        {data.first15Mins.map((item, i) => (
+                            <div key={i} className="flex gap-6 items-start relative">
+                                {i < data.first15Mins.length - 1 && (
+                                    <div className="absolute left-[19px] top-10 w-0.5 h-16 bg-slate-100" />
+                                )}
+                                <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-white font-black text-xs shrink-0 shadow-lg relative z-20">
+                                    {i + 1}
+                                </div>
+                                <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 flex-1 hover:bg-slate-100/50 transition-colors">
+                                    <div className="flex items-center justify-between gap-4 mb-2">
+                                        <span className="text-sm font-black font-mono text-slate-800 break-all">{item.file}</span>
+                                        <Badge variant="outline" className="bg-primary/10 text-primary border-none text-[8px] uppercase">Phase 1</Badge>
+                                    </div>
+                                    <p className="text-xs text-slate-500 font-medium leading-relaxed">{item.reason}</p>
+                                </div>
+                            </div>
+                        ))}
+                        
+                        <div className="flex justify-center py-4">
+                            <div className="h-10 w-0.5 bg-slate-100 border-dashed border-l" />
+                        </div>
+
+                        {data.next30Mins.map((item, i) => (
+                            <div key={i} className="flex gap-6 items-start relative opacity-80">
+                                <div className="w-10 h-10 rounded-full bg-slate-400 flex items-center justify-center text-white font-black text-xs shrink-0 shadow-sm">
+                                    {data.first15Mins.length + i + 1}
+                                </div>
+                                <div className="p-6 bg-white rounded-3xl border border-slate-100 flex-1 hover:border-slate-300 transition-all border-dashed">
+                                    <div className="flex items-center justify-between gap-4 mb-2">
+                                        <span className="text-sm font-bold font-mono text-slate-600 break-all">{item.file}</span>
+                                        <Badge variant="outline" className="bg-slate-100 text-slate-400 border-none text-[8px] uppercase">Phase 2</Badge>
+                                    </div>
+                                    <p className="text-xs text-slate-400 font-medium leading-relaxed italic">{item.reason}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                {/* Decorative Pattern */}
+                <div className="absolute top-0 right-0 w-64 h-64 opacity-[0.03] pointer-events-none">
+                    <svg viewBox="0 0 100 100" className="w-full h-full text-slate-900"><path d="M50 10 L50 90 M10 50 L90 50" stroke="currentColor" strokeWidth="2" strokeDasharray="4 4"/></svg>
+                </div>
+            </div>
+        </section>
+    );
+});
+
+// --- 12. Cloud Infrastructure ---
+const InfrastructureSection = memo(function InfrastructureSection({ data }: { data: AnalysisResult['infrastructure'] }) {
+    if (!data || !data.detected || data.detected.length === 0) return null;
+
+    return (
+        <section className="group">
+            <SectionHeader title="☁️ Cloud Infrastructure Intelligence" icon={Layout} />
+            <div className="bg-gradient-to-br from-sky-50 via-white to-indigo-50/30 border border-sky-200/50 rounded-[2.5rem] p-10 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-sky-300/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+
+                <div className="relative z-10 grid md:grid-cols-3 gap-8 mb-8">
+                    <div className="p-6 bg-white/70 backdrop-blur-sm border border-sky-100 rounded-3xl text-center">
+                        <div className="w-12 h-12 rounded-2xl bg-sky-100 text-sky-600 flex items-center justify-center mx-auto mb-4">
+                            <Globe className="w-6 h-6" />
+                        </div>
+                        <div className="text-[10px] font-black uppercase tracking-widest text-sky-400 mb-1">Cloud Provider</div>
+                        <div className="text-lg font-black text-slate-900">{data.cloudProvider || 'Multi-cloud'}</div>
+                    </div>
+                    <div className="p-6 bg-white/70 backdrop-blur-sm border border-sky-100 rounded-3xl text-center">
+                        <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center mx-auto mb-4">
+                            <Construction className="w-6 h-6" />
+                        </div>
+                        <div className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-1">IaC Files</div>
+                        <div className="text-lg font-black text-slate-900">{data.detected.length} detected</div>
+                    </div>
+                    <div className="md:col-span-1 p-6 bg-white/70 backdrop-blur-sm border border-sky-100 rounded-3xl text-center">
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-4">
+                            <ShieldCheck className="w-6 h-6" />
+                        </div>
+                        <div className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1">IaC Maturity</div>
+                        <div className="text-lg font-black text-slate-900">{data.detected.length > 5 ? 'High' : data.detected.length > 2 ? 'Moderate' : 'Basic'}</div>
+                    </div>
+                </div>
+
+                <div className="relative z-10 p-6 bg-white/50 backdrop-blur-sm border border-sky-100 rounded-3xl mb-6">
+                    <p className="text-sm text-slate-700 font-medium leading-relaxed italic border-l-2 border-sky-300 pl-4">
+                        "{data.summary}"
+                    </p>
+                </div>
+
+                <div className="relative z-10">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-sky-500 mb-4 pl-2">Detected Infrastructure Files</div>
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        {data.detected.slice(0, 12).map((file, i) => (
+                            <div key={i} className="flex items-center gap-2 p-3 bg-white/60 rounded-xl border border-sky-100 hover:border-sky-300 transition-all">
+                                <div className="w-1.5 h-1.5 rounded-full bg-sky-400 shrink-0" />
+                                <span className="text-[11px] font-bold font-mono text-slate-600 truncate">{file}</span>
+                            </div>
+                        ))}
+                        {data.detected.length > 12 && (
+                            <div className="flex items-center justify-center p-3 bg-sky-50 rounded-xl border border-sky-100">
+                                <span className="text-[10px] font-black text-sky-500">+{data.detected.length - 12} more files</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </section>
+    );
+});
+
+export interface AnalysisReportProps {
+    data: any;
+    repoUrl: string;
+    analysisId?: string;
+    teamId?: string;
+    reviews?: any[];
 }
+
 // --- Main Layout ---
 export function AnalysisReport({ 
     data: incomingData, 
     repoUrl,
     analysisId,
-    teamId
-}: { 
-    data: any, 
-    repoUrl: string,
-    analysisId?: string,
-    teamId?: string
-}) {
+    teamId,
+    reviews = []
+}: AnalysisReportProps) {
     const [activeSection, setActiveSection] = useState<string | null>(null);
+    const [fixingId, setFixingId] = useState<string | null>(null);
+
+    const handleAutoFix = useCallback(async (type: 'violation' | 'debt', index: number) => {
+        const id = `${type}-${index}`;
+        setFixingId(id);
+        const res = await generateRemediationPR(analysisId || "", type, index);
+        if (res.success && res.prUrl) {
+            window.open(res.prUrl, '_blank');
+        } else {
+            alert(res.error || "Failed to generate fix");
+        }
+        setFixingId(null);
+    }, [analysisId]);
 
     // Robust data parsing
     let data: AnalysisResult;
@@ -629,6 +1128,14 @@ export function AnalysisReport({
     return (
         <div className="w-full max-w-[1000px] mx-auto pb-32 font-sans selection:bg-primary/20 relative">
             <TLDRSection data={data.tldr} repoUrl={repoUrl} />
+            
+            {data.benchmarking && (
+                <MaturityBenchmark 
+                    data={data.benchmarking} 
+                    language={data.tldr.architecture.includes('Python') ? 'Python' : 'Next.js'} 
+                />
+            )}
+
             <div className="grid gap-12 mt-8">
                 <MaturityScale 
                     data={data.maturity} 
@@ -641,20 +1148,67 @@ export function AnalysisReport({
                     onComment={() => toggleComments('onboarding')}
                     analysisId={analysisId}
                     teamId={teamId}
+                    reviews={reviews}
                 />
+                <ModuleInsights data={data.modulePurposes} />
+                
+                {/* NEW CORE FEATURES */}
+                <div className="mt-16 mb-8">
+                    <div className="px-3 py-1 rounded-full bg-slate-900 text-white w-fit text-[10px] font-black uppercase tracking-[0.2em] mb-4">
+                        Interactive Protection
+                    </div>
+                    <ImpactExplorer analysisId={analysisId || ''} />
+                </div>
+
+                <DependencyGraphSection data={data.dependencySummary} />
+                <HealthBreakdownSection data={data.healthBreakdown} />
+                <InfrastructureSection data={data.infrastructure} />
+                <ReadingTree data={data.onboarding} />
+                <ArchitectureSandbox 
+                    analysisId={analysisId || ''} 
+                    impactfulFiles={data.impactfulFiles || []} 
+                />
+                <PreCommitSimulation analysisId={analysisId || ''} />
+                <PreCommitGuide analysisId={analysisId || ''} />
+
                 <BlastRadius 
                     data={data.blastRadius} 
                     onComment={() => toggleComments('blast')}
                     analysisId={analysisId}
                     teamId={teamId}
+                    impactfulFiles={data.impactfulFiles}
+                    reviews={reviews}
                 />
                 <RiskAndDebt 
                     data={data.riskAndDebt} 
                     onComment={() => toggleComments('risk')}
                     analysisId={analysisId}
                     teamId={teamId}
+                    reviews={reviews}
+                    onAutoFix={handleAutoFix}
+                    fixingId={fixingId}
                 />
+                <GovernanceSection 
+                    governance={data.governance} 
+                    onComment={() => toggleComments('governance')}
+                    onAutoFix={handleAutoFix}
+                    fixingId={fixingId}
+                />
+                {data.modernizationRoadmap && (
+                    <div className="mt-8">
+                        <ModernizationRoadmap 
+                            roadmap={data.modernizationRoadmap} 
+                            currentScore={data.healthBreakdown?.score || 0} 
+                        />
+                    </div>
+                )}
             </div>
+            {/* 11. IDE & Safety Infrastructure */}
+            <SectionHeader title="🛡️ Architectural Safety System" icon={ShieldCheck} />
+            <div className="grid lg:grid-cols-2 gap-8">
+                <IDEGuide />
+            </div>
+
             <FinalRecommendation data={data.recommendation} />
 
             {analysisId && (

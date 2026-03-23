@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, ShieldCheck } from "lucide-react"
 import { useState, Suspense, lazy } from "react"
 
 const Dithering = lazy(() =>
@@ -17,7 +17,7 @@ export function CTASection({ children }: { children?: React.ReactNode }) {
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
             >
-                <div className="relative overflow-hidden rounded-[48px] border border-[#1A1A1A]/5 bg-white shadow-sm py-20 px-[60px] flex flex-col items-center justify-center duration-500">
+                <div className="relative overflow-hidden rounded-[48px] border border-[#1A1A1A]/5 bg-white shadow-sm pt-8 md:pt-12 pb-20 md:pb-24 px-6 md:px-[60px] flex flex-col items-center justify-center duration-500">
                     <Suspense fallback={<div className="absolute inset-0 bg-muted/20" />}>
                         <div className="absolute inset-0 z-0 pointer-events-none opacity-25 mix-blend-multiply">
                             <Dithering
@@ -34,23 +34,29 @@ export function CTASection({ children }: { children?: React.ReactNode }) {
 
                     <div className="relative z-10 w-full max-w-4xl mx-auto text-center flex flex-col items-center">
 
-                        <div className="mt-6 mb-8 inline-flex items-center gap-2 rounded-full border border-[#FF7D29]/10 bg-[#FF7D29]/5 px-4 py-1.5 text-sm font-medium text-[#FF7D29] backdrop-blur-sm">
-                            <span className="relative flex h-2 w-2">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF7D29] opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#FF7D29]"></span>
-                            </span>
-                            Architectural Analysis
+                        <div className="mt-6 mb-8 inline-flex flex-col items-center gap-4">
+                            <div className="flex flex-wrap items-center justify-center gap-3">
+                                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/10 bg-emerald-500/5 px-4 py-1.5 text-sm font-medium text-emerald-600 backdrop-blur-sm">
+                                    <ShieldCheck className="w-4 h-4" />
+                                    Secure & Private Analysis
+                                </div>
+                            </div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#1A1A1A]/40 mt-2">
+                                Trusted by private repos • No data storage • Verified security
+                            </p>
                         </div>
 
                         {/* Headline */}
                         <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight text-[#1A1A1A] mb-8 leading-[1.15] text-balance drop-shadow-[0_2px_10px_rgba(255,255,255,0.8)]">
-                            Understand any codebase in <span className="bg-gradient-to-r from-[#E65A00] to-[#FF8C38] bg-clip-text text-transparent">minutes.</span>
+                            Understand any <span className="bg-gradient-to-r from-[#E65A00] to-[#FF8C38] bg-clip-text text-transparent italic">codebase</span> in minutes.
                         </h1>
 
                         {/* Description */}
                         <p className="text-[#1A1A1A]/60 text-lg md:text-xl max-w-2xl mb-12 leading-relaxed">
-                            Stop digging through code manually.
-                            See the system architecture, problem areas, and integration risks instantly
+                            Stop digging through code manually. 
+                            <span className="block font-bold text-[#1A1A1A] mt-1 text-balance">
+                                See the system architecture, problem areas, and integration risks instantly.
+                            </span>
                         </p>
 
                         {children}

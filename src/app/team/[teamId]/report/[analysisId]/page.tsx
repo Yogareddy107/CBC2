@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { db } from '@/lib/db';
 import { AnalysisReport } from '@/components/AnalysisReport';
-import { getTeamAnalyses } from '@/app/team/actions';
-import { Loader2, ArrowLeft, Users, Share2, MessageSquare, History } from 'lucide-react';
+import { getTeamAnalyses, getFileReviews } from '@/app/team/actions';
+import { Loader2, ArrowLeft, Users, Share2, MessageSquare, History, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
@@ -16,6 +16,7 @@ export default function CollaborativeReportPage() {
     const router = useRouter();
 
     const [analysis, setAnalysis] = useState<any>(null);
+    const [reviews, setReviews] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -28,16 +29,24 @@ export default function CollaborativeReportPage() {
     const loadAnalysis = async () => {
         setLoading(true);
         try {
-            const res = await getTeamAnalyses(teamId);
-            if (res.success) {
-                const found = res.analyses?.find((a: any) => a.id === analysisId);
+            const [analysisRes, reviewsRes] = await Promise.all([
+                getTeamAnalyses(teamId),
+                getFileReviews(analysisId, teamId)
+            ]);
+
+            if (analysisRes.success) {
+                const found = analysisRes.analyses?.find((a: any) => a.id === analysisId);
                 if (found) {
                     setAnalysis(found);
                 } else {
                     setError("Analysis not found in this team.");
                 }
             } else {
-                setError(res.error || "Failed to load team data.");
+                setError(analysisRes.error || "Failed to load team data.");
+            }
+
+            if (reviewsRes.success) {
+                setReviews(reviewsRes.reviews || []);
             }
         } catch (err) {
             setError("An unexpected error occurred.");
@@ -118,6 +127,7 @@ export default function CollaborativeReportPage() {
                     repoUrl={analysis.repo_url} 
                     analysisId={analysis.id}
                     teamId={teamId}
+                    reviews={reviews}
                 />
             </main>
         </div>

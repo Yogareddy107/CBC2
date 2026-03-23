@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { signOut } from '@/app/auth/actions';
 import { usePathname, useRouter } from 'next/navigation';
 import { LogoutConfirmModal } from '@/components/ui/LogoutConfirmModal';
+import { NotificationBell } from '@/components/NotificationBell';
 
 interface User {
     id: string;
@@ -106,6 +107,8 @@ export function Navbar({ user, freeTries }: NavbarProps) {
                                     <span className="hidden sm:inline">Team</span>
                                 </Link>
                             </Button>
+
+                            <NotificationBell />
 
                             <Button
                                 variant="ghost"

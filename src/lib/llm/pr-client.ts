@@ -20,7 +20,18 @@ export const PRAnalysisSchema = z.object({
         file: z.string().describe("The file path"),
         reason: z.string().describe("Why the reviewer should look very closely at this specific file's changes.")
     })).describe("The top files where bugs are most likely to hide in this PR."),
-    nitpicksAndSuggestions: z.array(z.string()).describe("A list of general observations, missed edge cases, or suggested refinements.")
+    hotspotAlerts: z.array(z.object({
+        file: z.string().describe("The file path"),
+        riskType: z.string().describe("The type of risk pre-identified (e.g. 'Complexity Hotspot', 'High Coupling')"),
+        advice: z.string().describe("Specific advice on how to review this change given its known history.")
+    })).optional().describe("Alerts for any files touched in this PR that were previously identified as Hotspots in the last full codebase analysis."),
+    nitpicksAndSuggestions: z.array(z.string()).describe("A list of general observations, missed edge cases, or suggested refinements."),
+    governanceAlerts: z.array(z.object({
+        ruleName: z.string(),
+        violation: z.string(),
+        severity: z.enum(["Error", "Warning"]),
+        advice: z.string()
+    })).optional().describe("Architectural governance violations detected in this PR.")
 });
 
 export type PRAnalysisResult = z.infer<typeof PRAnalysisSchema>;
@@ -28,7 +39,9 @@ export type PRAnalysisResult = z.infer<typeof PRAnalysisSchema>;
 const SYSTEM_PROMPT = `
 You are a Staff Software Engineer performing a rigorous Pull Request review.
 
-Your goal is to quickly summarize what the PR does, assess its overall risk to the system based on the files modified, and highlight the highest-risk files that need careful manual review. 
+Your goal is to quickly summarize what the PR does, assess its overall risk to the system, and highlight architectural governance violations. 
+
+Architectural integrity is your top priority. If the PR violates a team's defined governance rules (e.g., prohibited dependencies between modules), flag it prominently.
 
 Do NOT just read the title and body. Verify the developer's intent matches the actual diff patches provided.
 
@@ -36,7 +49,8 @@ OUTPUT REQUIREMENTS:
 - You must strictly output JSON matching the provided exact schema.
 - Be highly precise. Do not output vague statements like "This modifies the codebase". Be specific: "This alters the PaymentProcessor validation logic".
 - Use the provided diffs to find edge cases or files that need deep attention.
-- If there are standard files modified like \`package-lock.json\`, ignore them in your careful review unless something is extremely weird. Focus on core logic.
+- If there are architectural violations, provide clear advice on how to refactor the code to comply with the rules.
+- Ignore standard files like \`package-lock.json\` unless something is extremely weird.
 `;
 
 export async function analyzePR(prData: any): Promise<PRAnalysisResult> {
@@ -59,9 +73,17 @@ ${prData.body ? prData.body.slice(0, 2000) : "No description provided."}
 ${prData.summary.join('\n').slice(0, 3000)}
 ---
 
---- DETAILED DIFFS (Top ${prData.diffContext.length} files) ---
-${JSON.stringify(prData.diffContext).slice(0, 30000)}
+${prData.deterministicImpact ? `
+--- DETERMINISTIC BLAST RADIUS (Architecture Analysis) ---
+${JSON.stringify(prData.deterministicImpact, null, 2)}
 ---
+` : ""}
+
+${prData.systemContext ? `
+--- PERSISTENT REPOSITORY CONTEXT (CBC Knowledge) ---
+${prData.systemContext}
+---
+` : ""}
 
 Analyze this pull request and provide your assessment.
 `;

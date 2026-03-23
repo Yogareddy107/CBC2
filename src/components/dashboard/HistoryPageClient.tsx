@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Search, History } from 'lucide-react';
+import { useMemo, useState, useEffect } from 'react';
+import { Search, History, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { HistoryTable } from './HistoryTable';
 
@@ -20,6 +20,11 @@ interface HistoryPageClientProps {
 
 export function HistoryPageClient({ analyses }: HistoryPageClientProps) {
   const [query, setQuery] = useState('');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return analyses;
@@ -56,7 +61,11 @@ export function HistoryPageClient({ analyses }: HistoryPageClientProps) {
         </div>
       </header>
 
-      {filtered.length === 0 ? (
+      {!mounted ? (
+        <div className="py-24 text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary/20" />
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="py-24 text-center border border-dashed border-border/40 rounded-2xl bg-secondary/5">
           <div className="w-12 h-12 rounded-full bg-secondary/30 flex items-center justify-center mx-auto mb-4 border border-border/10">
             <History className="w-6 h-6 text-muted-foreground" />

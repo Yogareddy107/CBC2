@@ -25,6 +25,7 @@ export default function TeamWorkspacePage() {
 
     const loadTeams = async () => {
         const res = await getUserTeams();
+        console.log("[TeamWorkspace] Loaded teams:", res);
         if (res.success && res.teams) {
             setTeams(res.teams);
         }
@@ -62,43 +63,46 @@ export default function TeamWorkspacePage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC]">
-            <main className="max-w-7xl mx-auto px-6 py-12 space-y-16">
+        <div className="relative min-h-screen bg-slate-50/20">
+            {/* Background Accent */}
+            <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/5 blur-[120px] -z-10 rounded-full" />
+            
+            <div className="max-w-5xl mx-auto px-6 py-12 md:py-24 space-y-20 animate-in fade-in slide-in-from-bottom-4 duration-1000">
                 
                 {/* Hero Section */}
-                <div className="flex flex-col md:flex-row justify-between items-start gap-12">
-                    <div className="max-w-2xl space-y-6">
-                        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#FF7D29]/10 text-[#FF7D29] text-sm font-bold tracking-tight">
-                            <Users className="w-4 h-4" /> Team Workspace
+                <header className="text-center space-y-8">
+                    <div className="space-y-4">
+                        <div className="flex justify-center mb-6">
+                            <div className="inline-flex items-center gap-2 rounded-full border border-primary/10 bg-primary/5 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-primary backdrop-blur-sm shadow-sm ring-1 ring-primary/5">
+                                <Users className="w-3.5 h-3.5" />
+                                Collaborative Workspace
+                            </div>
                         </div>
-                        <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-slate-900 leading-[0.9]">
-                            Analyze Code <span className="text-slate-400">Together.</span>
+                        <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-[#1A1A1A] max-w-4xl mx-auto leading-tight">
+                            Analyze Code <span className="text-[#FF7D29]">Together.</span>
                         </h1>
-                        <p className="text-lg text-slate-500 font-medium leading-relaxed max-w-xl">
-                            A collaborative space where teams audit GitHub repositories in real-time, share insights, and enforce quality standards across the organization.
+                        <p className="text-lg text-slate-500 font-medium leading-relaxed max-w-2xl mx-auto">
+                            A professional space where teams audit repositories in real-time, share insights, and enforce architectural standards.
                         </p>
                     </div>
 
-                    {/* Join Team Card */}
-                    <div className="w-full md:w-96 bg-white border border-slate-200 rounded-3xl p-8 shadow-2xl shadow-slate-200/50 space-y-6">
-                        <div className="space-y-2">
-                            <h3 className="font-bold text-xl text-slate-900">Join a Team</h3>
-                            <p className="text-sm text-slate-400">Paste your invite code to enter a shared workspace.</p>
-                        </div>
-                        <form onSubmit={handleJoinTeam} className="space-y-4">
+                    {/* Integrated Join Team Search */}
+                    <div className="max-w-md mx-auto relative group">
+                        <form onSubmit={handleJoinTeam} className="flex gap-2 p-2 bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-200/50 group-focus-within:border-[#FF7D29]/30 transition-all">
                             <Input 
-                                placeholder="CBC-XXXX-XXXX" 
-                                className="h-12 bg-slate-50 border-slate-200 rounded-xl font-mono uppercase text-center tracking-widest"
+                                placeholder="Paste Invite Code (CBC-XXXX)" 
+                                className="flex-1 h-12 bg-transparent border-none font-mono uppercase text-center tracking-widest focus-visible:ring-0"
                                 value={inviteCode}
                                 onChange={e => setInviteCode(e.target.value)}
                                 required
                             />
-                            <Button type="submit" disabled={isJoining} className="w-full h-12 rounded-xl bg-slate-900 font-bold hover:bg-black transition-all">
-                                {isJoining ? <Loader2 className="w-5 h-5 animate-spin" /> : "Join Workspace"}
+                            <Button type="submit" disabled={isJoining} className="h-12 px-6 rounded-xl bg-slate-900 font-bold hover:bg-black transition-all">
+                                {isJoining ? <Loader2 className="w-5 h-5 animate-spin" /> : "Join"}
                             </Button>
                         </form>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-4">Have a code? Paste it above to join a workspace.</p>
                     </div>
-                </div>
+                </header>
 
                 {/* Team Grid */}
                 <div className="space-y-8">
@@ -144,15 +148,15 @@ export default function TeamWorkspacePage() {
                             >
                                 <div className="flex justify-between items-start">
                                     <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center text-white text-xl font-black">
-                                        {t.teamName[0].toUpperCase()}
+                                        {(t.teamName || 'T')[0].toUpperCase()}
                                     </div>
                                     <Badge variant="outline" className="rounded-full px-3 py-0.5 font-bold uppercase text-[10px] tracking-widest border-slate-200 text-slate-400">
-                                        {t.role}
+                                        {t.role || 'Member'}
                                     </Badge>
                                 </div>
                                 
                                 <div className="space-y-1">
-                                    <h3 className="font-bold text-xl text-slate-900">{t.teamName}</h3>
+                                    <h3 className="font-bold text-xl text-slate-900">{t.teamName || 'Untitled Workspace'}</h3>
                                     <p className="text-sm text-slate-500 font-medium">Shared Library & Collaborative Audits</p>
                                 </div>
 
@@ -196,7 +200,7 @@ export default function TeamWorkspacePage() {
                     </div>
                 </div>
 
-            </main>
+            </div>
         </div>
     );
 }

@@ -5,15 +5,18 @@ import { rateLimit } from '@/lib/rate-limit';
 
 // Plan pricing in INR
 const PLAN_PRICING = {
-  pro_monthly: 999, // ₹999 (~$10)
-  pro_yearly: 7999, // ₹7,999 (~$79)
+  pro_monthly: 1299, // ₹1299 (~$15)
+  pro_yearly: 11999, // ₹11,999 (~$144 or $12/mo)
+  team_monthly: 3299, // ₹3299 (~$39)
+  team_yearly: 31999, // ₹31,999 (~$384 or $32/mo)
 };
 
 export async function POST(request: NextRequest) {
   try {
-    const { isLimited } = await rateLimit(request, { limit: 5, windowMs: 60 * 1000 });
-    if (isLimited) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    const ip = request.headers.get('x-forwarded-for') || 'anonymous';
+    const { success } = rateLimit(`razorpay-order-${ip}`, 10, 60 * 1000);
+    if (!success) {
+      return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 });
     }
     const { userId, plan = 'pro_monthly' } = await request.json();
 

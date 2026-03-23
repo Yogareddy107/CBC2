@@ -1,5 +1,13 @@
 import { db } from '@/lib/db';
-import { analyses as analysesTable, subscriptions as subscriptionsTable } from '@/lib/db/schema';
+import { 
+    analyses as analysesTable, 
+    subscriptions as subscriptionsTable,
+    teams as teamsTable,
+    comments as commentsTable,
+    governance_rules as governanceRulesTable,
+    team_members as teamMembersTable,
+    file_reviews as fileReviewsTable
+} from '@/lib/db/schema';
 import { createSessionClient, createAdminClient } from '@/lib/appwrite';
 import { redirect } from 'next/navigation';
 import {
@@ -9,9 +17,11 @@ import {
 } from "@/components/ui/card";
 import Link from 'next/link';
 import { AdminTables } from '@/components/admin/AdminTables';
-import { count, eq, gt, sql, sum } from 'drizzle-orm';
+import { count, eq, gt, sql, sum, desc } from 'drizzle-orm';
+import { NotificationBell } from '@/components/NotificationBell';
+import { BroadcastBox } from '@/components/BroadcastBox';
 
-import { ALLOWED_ADMIN_EMAILS } from '@/lib/admin';
+import { isAdminEmail } from '@/lib/admin';
 
 export default async function AdminDashboard() {
     let user;
@@ -23,7 +33,7 @@ export default async function AdminDashboard() {
     }
 
     // 1. Access Control
-    if (!user.email || !ALLOWED_ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+    if (!isAdminEmail(user.email)) {
         redirect('/dashboard');
     }
 
@@ -51,7 +61,6 @@ export default async function AdminDashboard() {
     // Analyses last 7 days
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    // Drizzle column is string; convert date to ISO string for comparison
     const [analysesLast7DaysResult] = await db.select({ value: count() })
         .from(analysesTable)
         .where(gt(analysesTable.created_at, sevenDaysAgo.toISOString()));
@@ -65,7 +74,7 @@ export default async function AdminDashboard() {
         .where(gt(analysesTable.created_at, todayStart.toISOString()));
     const analysesToday = analysesTodayResult.value;
 
-    // Total Subscription Money (sum of amounts where status is 'active')
+    // Total Subscription Money
     let totalRevenue = 0;
     let paidSubscribers = 0;
     
@@ -73,22 +82,55 @@ export default async function AdminDashboard() {
         const [totalRevenueResult] = await db.select({ value: sum(subscriptionsTable.amount) })
             .from(subscriptionsTable)
             .where(eq(subscriptionsTable.status, 'active'));
-        // sum can return string depending on driver; coerce to number
         totalRevenue = Number(totalRevenueResult?.value) || 0;
 
-        // Paid Subscribers Count (count of subscriptions where status is 'active')
         const [paidSubscribersResult] = await db.select({ value: count() })
             .from(subscriptionsTable)
             .where(eq(subscriptionsTable.status, 'active'));
         paidSubscribers = paidSubscribersResult?.value || 0;
     } catch (error) {
-        // Table may not exist yet, set defaults
         totalRevenue = 0;
         paidSubscribers = 0;
     }
 
+    // --- 1.0 Feature Metrics ---
+    let totalGovernanceRules = 0;
+    let totalTeamMembers = 0;
+    let totalArchitects = 0;
+    let totalFileReviews = 0;
+    let githubAnalyses = 0;
+    let gitlabAnalyses = 0;
+
+    try {
+        const [govResult] = await db.select({ value: count() }).from(governanceRulesTable);
+        totalGovernanceRules = govResult?.value || 0;
+    } catch { totalGovernanceRules = 0; }
+
+    try {
+        const [membersResult] = await db.select({ value: count() }).from(teamMembersTable);
+        totalTeamMembers = membersResult?.value || 0;
+
+        const [architectsResult] = await db.select({ value: count() })
+            .from(teamMembersTable)
+            .where(eq(teamMembersTable.role, 'architect'));
+        totalArchitects = architectsResult?.value || 0;
+    } catch { totalTeamMembers = 0; totalArchitects = 0; }
+
+    try {
+        const [reviewsResult] = await db.select({ value: count() }).from(fileReviewsTable);
+        totalFileReviews = reviewsResult?.value || 0;
+    } catch { totalFileReviews = 0; }
+
+    // VCS Provider Distribution
+    try {
+        const allAnalyses = await db.select({ repoUrl: analysesTable.repo_url }).from(analysesTable);
+        allAnalyses.forEach(a => {
+            if (a.repoUrl?.includes('gitlab')) gitlabAnalyses++;
+            else githubAnalyses++;
+        });
+    } catch { githubAnalyses = 0; gitlabAnalyses = 0; }
+
     // 3. Fetch User Table Data and create user email map
-    // In Appwrite, we fetch from users.list()
     const userEmailMap = new Map<string, string>();
     totalUsersResponse.users.forEach(u => {
         userEmailMap.set(u.$id, u.email);
@@ -126,10 +168,46 @@ export default async function AdminDashboard() {
     const formattedAnalyses = recentAnalyses.map(a => ({
         id: a.id,
         repoUrl: a.repo_url,
-        userEmail: userEmailMap.get(a.user_id) || a.user_id, // Look up email from user_id, fallback to user_id if not found
-        // created_at is stored as text/ISO string in DB; convert to standardized format
+        userEmail: userEmailMap.get(a.user_id) || a.user_id,
         createdAt: a.created_at ? new Date(a.created_at).toISOString() : '',
         status: a.status
+    }));
+
+    // 5. Fetch Total Teams and Comments
+    const [totalTeamsResult] = await db.select({ value: count() }).from(teamsTable);
+    const totalTeams = Number(totalTeamsResult.value) || 0;
+
+    const [totalCommentsResult] = await db.select({ value: count() }).from(commentsTable);
+    const totalComments = Number(totalCommentsResult.value) || 0;
+
+    // 6. Fetch Top Repositories
+    const rawTopRepos = await db.select({
+        repoUrl: analysesTable.repo_url,
+        count: count()
+    })
+    .from(analysesTable)
+    .groupBy(analysesTable.repo_url)
+    .orderBy(desc(count()))
+    .limit(5);
+
+    const topRepos = rawTopRepos.map(r => ({
+        repoUrl: r.repoUrl || 'Unknown',
+        count: Number(r.count) || 0
+    }));
+
+    // 7. Fetch Recent Teams
+    const recentTeamsRaw = await db.select()
+        .from(teamsTable)
+        .orderBy(desc(teamsTable.created_at))
+        .limit(10);
+
+    const formattedTeams = recentTeamsRaw.map(t => ({
+        id: t.id,
+        name: t.name,
+        inviteCode: t.invite_code,
+        ownerEmail: userEmailMap.get(t.owner_id) || 'Unknown',
+        createdAt: t.created_at ? new Date(t.created_at).toISOString() : '',
+        plan: t.plan
     }));
 
     return (
@@ -138,28 +216,64 @@ export default async function AdminDashboard() {
                 <header className="flex justify-between items-center border-b pb-6">
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
-                        <p className="text-muted-foreground text-sm">Internal engineering control panel</p>
+                        <p className="text-muted-foreground text-sm">Internal engineering control panel — <span className="font-semibold text-[#FF7D29]">v1.0</span></p>
                     </div>
                     <div className="flex items-center gap-4">
+                        <NotificationBell />
                         <Link href="/dashboard" className="text-sm font-medium hover:underline">
                             Back to App
                         </Link>
                     </div>
                 </header>
 
-                {/* SECTION A — Overview Metrics */}
-                <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <MetricCard title="Total Users" value={totalUsers} />
-                    <MetricCard title="Paid Subscribers" value={paidSubscribers} />
-                    <MetricCard title="Total Revenue" value={`₹${totalRevenue.toLocaleString('en-IN')}`} />
-                    <MetricCard title="Total Analyses" value={totalAnalyses} />
-                    <MetricCard title="Last 7 Days" value={analysesLast7Days} />
-                    <MetricCard title="Analyses Today" value={analysesToday} />
-                    <MetricCard title="Success Rate" value={`${successRate}%`} />
+                {/* SECTION A — Core Overview Metrics */}
+                <section>
+                    <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground mb-4">Core Metrics</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <MetricCard title="Total Users" value={totalUsers} />
+                        <MetricCard title="Paid Subscribers" value={paidSubscribers} />
+                        <MetricCard title="Total Revenue" value={`₹${totalRevenue.toLocaleString('en-IN')}`} />
+                        <MetricCard title="Active Teams" value={totalTeams} />
+                        <MetricCard title="Total Analyses" value={totalAnalyses} />
+                        <MetricCard title="Success Rate" value={`${successRate}%`} />
+                        <MetricCard title="Last 7 Days" value={analysesLast7Days} />
+                        <MetricCard title="Analyses Today" value={analysesToday} />
+                    </div>
                 </section>
 
-                {/* Tables Section (Section B & C) */}
-                <AdminTables users={userData} analyses={formattedAnalyses as any} />
+                {/* SECTION A2 — 1.0 Feature Metrics */}
+                <section>
+                    <h2 className="text-xs font-black uppercase tracking-[0.2em] text-[#FF7D29] mb-4">1.0 Feature Intelligence</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <FeatureCard title="Governance Rules" value={totalGovernanceRules} label="Active rules across all teams" />
+                        <FeatureCard title="RBAC Members" value={totalTeamMembers} label={`${totalArchitects} architect${totalArchitects !== 1 ? 's' : ''} assigned`} />
+                        <FeatureCard title="File Reviews" value={totalFileReviews} label="Team sign-offs completed" />
+                        <FeatureCard title="Collaboration" value={totalComments} label="Discussion threads" />
+                    </div>
+                </section>
+
+                {/* SECTION A3 — VCS Provider Distribution */}
+                <section>
+                    <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground mb-4">VCS Provider Distribution</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <VcsCard provider="GitHub" count={githubAnalyses} total={totalAnalyses} color="#24292e" />
+                        <VcsCard provider="GitLab" count={gitlabAnalyses} total={totalAnalyses} color="#FC6D26" />
+                        <VcsCard provider="Other/Self-Hosted" count={Math.max(0, totalAnalyses - githubAnalyses - gitlabAnalyses)} total={totalAnalyses} color="#6B7280" />
+                    </div>
+                </section>
+
+                {/* Tables Section (Section B, C & D) */}
+                <AdminTables 
+                    users={userData} 
+                    analyses={formattedAnalyses as any} 
+                    teams={formattedTeams as any}
+                    topRepos={topRepos as any}
+                />
+
+                {/* Admin Broadcast Area */}
+                <div className="pt-12 border-t border-border/10">
+                    <BroadcastBox userEmail={user.email} />
+                </div>
             </div>
         </div>
     );
@@ -178,3 +292,37 @@ function MetricCard({ title, value }: { title: string, value: string | number })
     )
 }
 
+function FeatureCard({ title, value, label }: { title: string, value: string | number, label: string }) {
+    return (
+        <Card className="rounded-xl border-[#FF7D29]/10 shadow-none bg-[#FF7D29]/[0.02]">
+            <CardHeader className="pb-2">
+                <p className="text-xs font-black text-[#FF7D29] uppercase tracking-wider">{title}</p>
+            </CardHeader>
+            <CardContent>
+                <p className="text-2xl font-black text-slate-900">{value}</p>
+                <p className="text-[10px] text-muted-foreground mt-1 font-medium">{label}</p>
+            </CardContent>
+        </Card>
+    )
+}
+
+function VcsCard({ provider, count: providerCount, total, color }: { provider: string, count: number, total: number, color: string }) {
+    const pct = total > 0 ? ((providerCount / total) * 100).toFixed(1) : '0.0';
+    return (
+        <Card className="rounded-xl border-gray-200 shadow-none bg-card/50 overflow-hidden">
+            <CardContent className="pt-6">
+                <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
+                        <p className="text-sm font-bold">{provider}</p>
+                    </div>
+                    <p className="text-xs font-bold text-muted-foreground">{pct}%</p>
+                </div>
+                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: color }} />
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">{providerCount} of {total} analyses</p>
+            </CardContent>
+        </Card>
+    )
+}

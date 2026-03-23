@@ -15,6 +15,20 @@
       "when": 1772288686276,
       "tag": "0001_add_subscriptions",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1773850979365,
+      "tag": "0002_shiny_runaways",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1773988251491,
+      "tag": "0003_sync_analyses_schema",
+      "breakpoints": true
     }
   ]
 }

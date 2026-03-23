@@ -5,6 +5,7 @@ import { createSessionClient } from '@/lib/appwrite';
 import { db } from '@/lib/db';
 import PlanActions from '@/components/PlanActions';
 import Link from 'next/link';
+import { PricingGrid } from '@/components/PricingGrid';
 
 export default async function PlanPage() {
     let user;
@@ -36,7 +37,12 @@ export default async function PlanPage() {
     try {
         const subs = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.user_id, user.$id)).orderBy(sql`${subscriptionsTable.created_at} DESC`).limit(1);
         currentSub = subs[0] || null;
-        currentPlanName = currentSub ? 'Pro Professional' : 'Free Tier';
+        if (currentSub) {
+            currentPlanName = currentSub.plan === 'pro_monthly' || currentSub.plan === 'pro_yearly' ? 'Professional' : 
+                             currentSub.plan === 'team' ? 'Team' : 'Explorer';
+        } else {
+            currentPlanName = 'Explorer';
+        }
     } catch (e) {
         console.error('Error fetching subscriptions:', e);
     }
@@ -167,110 +173,10 @@ export default async function PlanPage() {
                     <p className="text-muted-foreground">Select the tier that matches your engineering velocity.</p>
                 </div>
 
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {/* Free Tier */}
-                    <div className="bg-white border border-border/20 rounded-[40px] p-10 shadow-sm flex flex-col justify-between gap-10 hover:shadow-md transition-all">
-                        <div className="space-y-6">
-                            <div className="space-y-2">
-                                <h3 className="text-xl font-bold text-[#1A1A1A]">Core</h3>
-                                <p className="text-xs font-medium text-muted-foreground italic">Essential code audits</p>
-                            </div>
-                            <div className="flex items-baseline gap-1">
-                                <span className="text-5xl font-bold tracking-tighter text-[#1A1A1A]">$0</span>
-                                <span className="text-sm font-bold text-muted-foreground">/mo</span>
-                            </div>
-                            <ul className="space-y-4 pt-6 border-t border-border/5">
-                                {[
-                                    { text: "10 monthly analyses", inc: true },
-                                    { text: "Structural overview", inc: true },
-                                    { text: "Major entry points", inc: true },
-                                    { text: "No analysis history", inc: false }
-                                ].map((item, i) => (
-                                    <li key={i} className="flex items-center gap-3 text-sm font-medium">
-                                        {item.inc ? <Check className="w-4 h-4 text-primary" /> : <X className="w-4 h-4 text-muted-foreground/30" />}
-                                        <span className={item.inc ? "text-[#1A1A1A]" : "text-muted-foreground/40"}>{item.text}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                        <button disabled className="w-full h-14 bg-secondary text-muted-foreground font-bold rounded-2xl cursor-not-allowed">
-                            Current Plan
-                        </button>
-                    </div>
-
-                    {/* Pro Tier (Monthly) */}
-                    <div className="bg-white border border-primary/20 rounded-[40px] p-10 shadow-xl flex flex-col justify-between gap-10 relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 p-6">
-                            <Zap className="w-6 h-6 text-primary animate-pulse" />
-                        </div>
-                        <div className="space-y-6">
-                            <div className="space-y-2">
-                                <h3 className="text-xl font-bold text-[#1A1A1A]">Professional</h3>
-                                <p className="text-xs font-medium text-primary italic">Best for daily audits</p>
-                            </div>
-                            <div className="flex items-baseline gap-1">
-                                <span className="text-5xl font-bold tracking-tighter text-[#1A1A1A]">$10</span>
-                                <span className="text-sm font-bold text-muted-foreground">/mo</span>
-                            </div>
-                            <ul className="space-y-4 pt-6 border-t border-border/5">
-                                {[
-                                    { text: "100 monthly analyses", inc: true },
-                                    { text: "Full analysis history", inc: true },
-                                    { text: "Detailed risk signals", inc: true },
-                                    { text: "Priority processing", inc: true }
-                                ].map((item, i) => (
-                                    <li key={i} className="flex items-center gap-3 text-sm font-medium">
-                                        <Check className="w-4 h-4 text-primary" />
-                                        <span className="text-[#1A1A1A]">{item.text}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                        <PlanActions 
-                            userId={user.$id}
-                            currentSub={currentSub ? { plan: 'pro', status: currentSub.status || 'active' } : null}
-                            planId="pro_monthly"
-                            label="Upgrade to Pro"
-                        />
-                    </div>
-
-                    {/* Pro Tier (Yearly) */}
-                    <div className="bg-[#1A1A1A] text-white border border-white/5 rounded-[40px] p-10 shadow-2xl flex flex-col justify-between gap-10 relative overflow-hidden">
-                        <div className="absolute -right-8 -top-8 w-40 h-40 bg-primary/20 blur-[60px] rounded-full" />
-                        <div className="space-y-6 relative z-10">
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="text-xl font-bold">Standard Yearly</h3>
-                                    <span className="px-3 py-1 bg-primary text-white text-[10px] font-bold uppercase rounded-full">Save 34%</span>
-                                </div>
-                                <p className="text-xs font-medium text-white/50 italic">Professional choice</p>
-                            </div>
-                            <div className="flex items-baseline gap-1">
-                                <span className="text-5xl font-bold tracking-tighter">$79</span>
-                                <span className="text-sm font-bold text-white/40">/yr</span>
-                            </div>
-                            <ul className="space-y-4 pt-6 border-t border-white/10">
-                                {[
-                                    { text: "Everything in Pro Monthly", inc: true },
-                                    { text: "Custom report branding", inc: true },
-                                    { text: "Advanced insights access", inc: true },
-                                    { text: "Priority support channel", inc: true }
-                                ].map((item, i) => (
-                                    <li key={i} className="flex items-center gap-3 text-sm font-medium">
-                                        <Check className="w-4 h-4 text-primary" />
-                                        <span className="text-white/80">{item.text}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                        <PlanActions 
-                            userId={user.$id}
-                            currentSub={currentSub ? { plan: 'pro', status: currentSub.status || 'active' } : null}
-                            planId="pro_yearly"
-                            label="Upgrade to Yearly"
-                        />
-                    </div>
-                </div>
+                <PricingGrid 
+                    userId={user.$id}
+                    currentPlanName={currentPlanName}
+                />
             </section>
         </div>
     );

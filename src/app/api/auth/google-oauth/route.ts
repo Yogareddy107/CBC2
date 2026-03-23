@@ -5,8 +5,9 @@ import { rateLimit } from '@/lib/rate-limit';
 
 export async function GET(request: NextRequest) {
     try {
-        const { isLimited } = await rateLimit(request, { limit: 5, windowMs: 60 * 1000 });
-        if (isLimited) {
+        const ip = request.headers.get('x-forwarded-for') || 'anonymous';
+        const { success } = rateLimit(`google-oauth-${ip}`, 5, 60 * 1000);
+        if (!success) {
             return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 });
         }
         const { account } = await createAdminClient();

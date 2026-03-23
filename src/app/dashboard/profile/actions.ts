@@ -1,10 +1,43 @@
 'use server';
 
-import { createSessionClient, createAdminClient } from '@/lib/appwrite';
+import { createSessionClient, generateApiKey } from "@/lib/appwrite";
+import { revalidatePath } from "next/cache";
 import { db } from '@/lib/db';
-import { analyses, subscriptions } from '@/lib/db/schema';
+import { analyses } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { revalidatePath } from 'next/cache';
+
+export async function createApiKeyAction() {
+    try {
+        const { account } = await createSessionClient();
+        const apiKey = generateApiKey();
+        
+        await account.updatePrefs({
+            cbc_api_key: apiKey
+        });
+
+        revalidatePath('/dashboard/profile');
+        return { success: true, apiKey };
+    } catch (error: any) {
+        console.error("[createApiKeyAction] Error:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function deleteApiKeyAction() {
+    try {
+        const { account } = await createSessionClient();
+        
+        await account.updatePrefs({
+            cbc_api_key: null
+        });
+
+        revalidatePath('/dashboard/profile');
+        return { success: true };
+    } catch (error: any) {
+        console.error("[deleteApiKeyAction] Error:", error);
+        return { success: false, error: error.message };
+    }
+}
 
 export async function updateProfileName(name: string) {
     try {
@@ -12,23 +45,21 @@ export async function updateProfileName(name: string) {
         await account.updateName(name);
         revalidatePath('/dashboard/profile');
         return { success: true };
-    } catch (error: unknown) {
-        console.error('Error in updateProfileName:', error);
-        const message = error instanceof Error ? error.message : String(error);
-        return { error: message || 'Failed to update name' };
+    } catch (error: any) {
+        console.error("[updateProfileName] Error:", error);
+        return { success: false, error: error.message };
     }
 }
 
 export async function updateProfilePassword(newPassword: string, oldPassword: string) {
     try {
         const { account } = await createSessionClient();
-        // Appwrite requires the current password when updating to a new one
         await account.updatePassword(newPassword, oldPassword);
+        revalidatePath('/dashboard/profile');
         return { success: true };
-    } catch (error: unknown) {
-        console.error('Error in updateProfilePassword:', error);
-        const message = error instanceof Error ? error.message : String(error);
-        return { error: message || 'Failed to update password' };
+    } catch (error: any) {
+        console.error("[updateProfilePassword] Error:", error);
+        return { success: false, error: error.message };
     }
 }
 
@@ -37,11 +68,12 @@ export async function deleteAllAnalyses() {
         const { account } = await createSessionClient();
         const user = await account.get();
         await db.delete(analyses).where(eq(analyses.user_id, user.$id));
+        revalidatePath('/dashboard');
+        revalidatePath('/dashboard/profile');
         return { success: true };
-    } catch (error: unknown) {
-        console.error('Error in deleteAllAnalyses:', error);
-        const message = error instanceof Error ? error.message : String(error);
-        return { error: message || 'Failed to delete analyses' };
+    } catch (error: any) {
+        console.error("[deleteAllAnalyses] Error:", error);
+        return { success: false, error: error.message };
     }
 }
 
@@ -49,20 +81,16 @@ export async function deleteAccountAndData() {
     try {
         const { account } = await createSessionClient();
         const user = await account.get();
-
-        // Delete stored analyses and subscriptions first
+        
+        // Delete all analyses first
         await db.delete(analyses).where(eq(analyses.user_id, user.$id));
-        await db.delete(subscriptions).where(eq(subscriptions.user_id, user.$id));
-
-        // Then delete the Appwrite user account using Admin Client
-        const { users } = await createAdminClient();
-        await users.delete(user.$id);
-
+        
+        // Delete the Appwrite session (user will be logged out)
+        await account.deleteSession('current');
+        
         return { success: true };
-    } catch (error: unknown) {
-        console.error('Error in deleteAccountAndData:', error);
-        const message = error instanceof Error ? error.message : String(error);
-        return { error: message || 'Failed to delete account' };
+    } catch (error: any) {
+        console.error("[deleteAccountAndData] Error:", error);
+        return { success: false, error: error.message };
     }
 }
-

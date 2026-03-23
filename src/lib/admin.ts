@@ -1,8 +1,5 @@
 export const ALLOWED_ADMIN_EMAILS = [
-    'vineelavelpuri@gmail.com',
-    'vineelavelpuri26@gmail.com',
-    'teamintrasphere@gmail.com',
-    'admin@example.com'
+    'teamintrasphere@gmail.com'
 ];
 
 export function isAdminEmail(email?: string) {
