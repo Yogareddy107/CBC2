@@ -29,6 +29,13 @@
       "when": 1773988251491,
       "tag": "0003_sync_analyses_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1774246743725,
+      "tag": "0004_lean_blur",
+      "breakpoints": true
     }
   ]
 }

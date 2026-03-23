@@ -97,8 +97,7 @@ export async function broadcastNotification(title: string, message: string, type
             title,
             message,
             type,
-            link,
-            user_id: null // Global
+            link: link || null,
         });
 
         revalidatePath('/');
