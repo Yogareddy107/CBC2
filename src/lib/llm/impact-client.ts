@@ -1,11 +1,7 @@
-import { generateObject } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
-import { z } from 'zod';
-import { buildDependencyGraph, extractDependencies, resolveDependency } from '../analysis/dependency-graph';
+import { generateAIObject } from './unified-client';
 
-const openai = createOpenAI({
-    apiKey: process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || '',
-});
+import { z } from 'zod';
+import { extractDependencies, resolveDependency } from '../analysis/dependency-graph';
 
 export const ImpactSchema = z.object({
     summary: z.string().describe("A concise 1-2 sentence description of what this specific file does in the system."),
@@ -40,19 +36,7 @@ OUTPUT REQUIREMENTS:
 `;
 
 export async function analyzeImpact(repoData: any): Promise<ImpactResult> {
-    const apiKey = process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-        throw new Error("AI API key is not configured.");
-    }
-
     // 1. Deterministic Dependency Analysis for the Target File
-    const fileContents: Record<string, string> = {};
-    if (repoData.targetFilePath && repoData.targetFileContent) {
-        fileContents[repoData.targetFilePath] = repoData.targetFileContent;
-    }
-    
-    // We ideally need more file contents to find who depends on US.
-    // However, we can at least find what WE depend on.
     const myDeps = repoData.targetFileContent ? extractDependencies(repoData.targetFilePath, repoData.targetFileContent) : [];
     const resolvedDeps = myDeps.map(d => resolveDependency(repoData.targetFilePath, d, repoData.tree)).filter(Boolean);
 
@@ -82,11 +66,12 @@ Analyze the impact of modifying this specific target file.
 
     try {
         console.log(`[Impact Client] Starting LLM impact analysis for ${repoData.targetFilePath}...`);
-        const { object } = await generateObject({
-            model: openai('gpt-4o-mini'),
+        const { object } = await generateAIObject({
+
             schema: ImpactSchema,
             system: SYSTEM_PROMPT,
             prompt: promptContext,
+            maxTokens: 4096
         });
         
         console.log(`[Impact Client] Analysis completed for ${repoData.targetFilePath}.`);
@@ -96,3 +81,4 @@ Analyze the impact of modifying this specific target file.
         throw new Error("Failed to generate impact analysis.");
     }
 }
+

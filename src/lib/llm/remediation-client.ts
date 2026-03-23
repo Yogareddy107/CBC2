@@ -1,10 +1,6 @@
-import OpenAI from 'openai';
-import { z } from "zod";
+import { generateAIObject } from "./unified-client";
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY,
-    baseURL: "https://openrouter.ai/api/v1",
-});
+import { z } from "zod";
 
 export const RemediationSchema = z.object({
     explanation: z.string(),
@@ -50,11 +46,14 @@ Return ONLY JSON matching the schema:
 }
 `;
 
-    const response = await openai.chat.completions.create({
-        model: "openai/gpt-4o",
-        messages: [{ role: "system", content: "You are a Principal Architect. Return valid JSON." }, { role: "user", content: prompt }],
-        response_format: { type: "json_object" },
+    const { object } = await generateAIObject({
+
+        schema: RemediationSchema,
+        system: "You are a Principal Architect. Return valid JSON.",
+        prompt,
+        maxTokens: 4096
     });
 
-    return RemediationSchema.parse(JSON.parse(response.choices[0].message.content || "{}"));
+    return object;
 }
+

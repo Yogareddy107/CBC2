@@ -15,6 +15,9 @@ import { sendHighRiskAlert, sendGovernanceNotice } from "@/lib/notifications/sla
 import { requireArchitect, requireMember } from "@/lib/auth/rbac";
 import { generateRemediation } from "@/lib/llm/remediation-client";
 import { rateLimit } from "@/lib/rate-limit";
+import { generateAIObject } from "@/lib/llm/unified-client";
+import { z } from "zod";
+
 
 /**
  * simulateRefactor
@@ -61,25 +64,28 @@ export async function generateGovernanceRule(description: string) {
     `;
 
     try {
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                model: "openai/gpt-3.5-turbo",
-                messages: [{ role: "user", content: prompt }]
-            })
+        const { object } = await generateAIObject({
+            schema: z.object({
+                name: z.string(),
+                definition: z.object({
+                    type: z.enum(["dependency"]),
+                    from: z.string(),
+                    to: z.string(),
+                    prohibited: z.boolean()
+                }),
+                description: z.string().optional()
+            }),
+            system: "You are an Architectural Governance Engine. Return valid JSON.",
+            prompt,
+            maxTokens: 1024
         });
 
-        const json = await response.json();
-        const content = json.choices[0].message.content;
-        return { success: true, rule: JSON.parse(content) };
+        return { success: true, rule: object };
     } catch (err: any) {
         return { success: false, error: err.message };
     }
 }
+
 
 /**
  * saveGovernanceRule

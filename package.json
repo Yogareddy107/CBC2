@@ -11,6 +11,7 @@
     "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
+    "@ai-sdk/google": "^3.0.52",
     "@ai-sdk/openai": "^3.0.41",
     "@libsql/client": "^0.17.0",
     "@paper-design/shaders-react": "^0.0.71",

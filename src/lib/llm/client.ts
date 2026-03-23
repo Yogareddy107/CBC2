@@ -1,4 +1,7 @@
 import OpenAI from 'openai';
+import { generateAIObject } from "./unified-client";
+
+
 import { z } from "zod";
 import { 
     detectEntryPoints, 
@@ -112,14 +115,8 @@ export const AnalysisSchema = z.object({
 
 export type AnalysisResult = z.infer<typeof AnalysisSchema>;
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY,
-    baseURL: "https://openrouter.ai/api/v1",
-    defaultHeaders: {
-        "HTTP-Referer": "https://check-before-commit.vercel.app",
-        "X-Title": "CheckBeforeCommit",
-    }
-});
+// OpenAI instance removed in favor of unified-client
+
 
 export async function analyzeRepo(repoData: {
     name: string;
@@ -178,16 +175,18 @@ export async function analyzeRepo(repoData: {
         }))
     };
 
-    const model = "openai/gpt-4o-mini";
-    const prompt = `Perform a technical audit of ${repoData.name}. Return ONLY JSON matching the consolidated schema including sections for tldr, maturity, onboarding, blastRadius, riskAndDebt, recommendation, healthBreakdown, and modernizationRoadmap. Deterministic data: Health Score ${health.score}, Blast Radius ${health.riskIndicators.refactorSafety}%.`;
+    const prompt = `Perform a technical audit of ${repoData.name}. Deterministic data: Health Score ${health.score}, Blast Radius ${health.riskIndicators.refactorSafety}%.`;
 
-    const response = await openai.chat.completions.create({
-        model,
-        messages: [{ role: "system", content: "You are a Principal Software Architect. Return valid JSON." }, { role: "user", content: prompt }],
-        response_format: { type: "json_object" },
+    const { object } = await generateAIObject({
+
+        schema: AnalysisSchema,
+        system: "You are a Principal Software Architect. Return valid JSON.",
+        prompt,
+        maxTokens: 8192
     });
 
-    const parsed = JSON.parse(response.choices[0].message.content || "{}");
+    const parsed = object as any;
+
     const stackMapping: Record<string, TechStack> = { 'nextjs': 'Next.js', 'react': 'React', 'python': 'Python', 'rust': 'Rust', 'typescript': 'TypeScript' };
     const stack = stackMapping[repoData.language.toLowerCase()] || 'Generic';
     const benchmarkResults = calculateMarketGrade(stack as TechStack, {
