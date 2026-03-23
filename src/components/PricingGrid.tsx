@@ -38,8 +38,8 @@ export const PricingGrid = ({
             id: 'pro_monthly',
             name: "Professional",
             description: "For serious solo-founders",
-            monthlyPrice: "$15",
-            yearlyPrice: "$12",
+            monthlyPrice: "$10",
+            yearlyPrice: "$8",
             period: "/ month",
             features: [
                 "Private Repo Analysis (Unlimited)",
@@ -54,8 +54,8 @@ export const PricingGrid = ({
             id: 'team_monthly',
             name: "Team",
             description: "Up to 5 members included",
-            monthlyPrice: "$39",
-            yearlyPrice: "$32",
+            monthlyPrice: "$30",
+            yearlyPrice: "$27",
             period: "/ month",
             features: [
                 "Shared Team Workspaces",
@@ -97,7 +97,7 @@ export const PricingGrid = ({
                 </div>
                 {isYearly && (
                     <span className="text-xs font-bold text-[#FF7D29] animate-bounce">
-                        Save up to 20% with yearly billing!
+                        Save up to 17% with yearly billing!
                     </span>
                 )}
             </div>
