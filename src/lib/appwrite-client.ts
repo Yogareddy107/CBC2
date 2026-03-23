@@ -38,8 +38,9 @@ export async function signInWithGoogleClient() {
     // This will redirect the browser automatically to Google
     // No need to return anything - the browser will navigate away
     await account.createOAuth2Session(OAuthProvider.Google, redirectUrl, failureUrl);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Google OAuth init error:', error);
-    throw new Error(error.message || 'Failed to initiate Google login');
+    const message = error instanceof Error ? error.message : 'Failed to initiate Google login';
+    throw new Error(message);
   }
 }

@@ -3,6 +3,8 @@
 import { db } from '@/lib/db';
 import { notifications, notification_status } from '@/lib/db/schema';
 import { eq, and, or, isNull, desc, not, exists, sql } from 'drizzle-orm';
+import { isAdminEmail } from '@/lib/admin';
+
 import { createSessionClient } from '@/lib/appwrite';
 import { revalidatePath } from 'next/cache';
 
@@ -83,7 +85,7 @@ export async function markAsRead(notificationId: string) {
     }
 }
 
-import { isAdminEmail } from '@/lib/admin';
+
 
 export async function broadcastNotification(title: string, message: string, type: 'info' | 'warning' | 'feature' | 'success' = 'info', link?: string) {
     try {
