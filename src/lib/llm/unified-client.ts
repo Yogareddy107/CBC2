@@ -1,7 +1,6 @@
 import { google } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
 import { generateObject, type GenerateObjectResult, type LanguageModel } from 'ai';
-
 import { z } from 'zod';
 
 // ---------------------------------------------------------
@@ -17,20 +16,16 @@ const openrouter = createOpenAI({
 });
 
 /**
- * Unified Model Picker
- * Prioritizes Direct Gemini API (Massive Free Tier), 
- * falls back to OpenRouter Free models.
+ * getGeminiModel
+ * Returns the Gemini 1.5 Flash model with the most compatible name.
  */
-export const getUnifiedModel = () => {
-    const hasGeminiKey = !!process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-    
-    if (hasGeminiKey) {
-        return google('gemini-1.5-flash');
-    }
+const getGeminiModel = () => google('gemini-1.5-flash-latest');
 
-    // Fallback to OpenRouter Free Models
-    return openrouter('google/gemini-2.0-flash-exp:free');
-};
+/**
+ * getFallbackModel
+ * Returns the OpenRouter free fallback model.
+ */
+const getFallbackModel = () => openrouter('google/gemini-2.0-flash-exp:free');
 
 // ---------------------------------------------------------
 // STANDARDIZED WRAPPERS
@@ -39,6 +34,7 @@ export const getUnifiedModel = () => {
 /**
  * generateAIObject
  * Unified wrapper for generating structured JSON objects.
+ * Implements a robust manual fallback: Gemini (Direct) -> OpenRouter (Free Fallback).
  */
 export async function generateAIObject<T>(params: {
     schema: z.ZodType<T>;
@@ -46,12 +42,32 @@ export async function generateAIObject<T>(params: {
     prompt: string;
     maxTokens?: number;
 }): Promise<GenerateObjectResult<T>> {
-    return generateObject({
-        model: getUnifiedModel(),
+    const hasGeminiKey = !!process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+
+    // 1. Try Gemini Direct (Primary)
+    if (hasGeminiKey) {
+        try {
+            console.log(`[Unified-AI] Attempting AI generation with Gemini 1.5 Flash...`);
+            return await generateObject({
+                model: getGeminiModel(),
+                schema: params.schema,
+                system: params.system,
+                prompt: params.prompt,
+                maxTokens: params.maxTokens || 4096,
+            });
+        } catch (error: any) {
+            console.warn(`[Unified-AI] Gemini failed: ${error.message}. Falling back to OpenRouter...`);
+            // Fall through to OpenRouter fallback
+        }
+    }
+
+    // 2. Try OpenRouter (Secondary / Fallback)
+    console.log(`[Unified-AI] Using OpenRouter Free Fallback...`);
+    return await generateObject({
+        model: getFallbackModel(),
         schema: params.schema,
         system: params.system,
         prompt: params.prompt,
         maxTokens: params.maxTokens || 4096,
     });
 }
-
