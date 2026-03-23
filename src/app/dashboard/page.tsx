@@ -4,7 +4,7 @@ import { analyses as analysesTable } from '@/lib/db/schema';
 import { createSessionClient } from '@/lib/appwrite';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { Github, ExternalLink, Clock, Sparkles, Activity, Gitlab, Globe, ShieldCheck, Cloud, Code, Terminal, FolderOpen, FileArchive } from 'lucide-react';
+import { Github, ExternalLink, Clock, Sparkles, Activity, Gitlab, Globe, Cloud, Code, Terminal, FolderOpen, FileArchive } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { NewAnalysisForm } from '@/components/dashboard/NewAnalysisForm';
 import { BroadcastBox } from '@/components/BroadcastBox';
@@ -46,12 +46,6 @@ export default async function DashboardPage() {
             {/* Centered Hero Section */}
             <header className="text-center space-y-8">
                 <div className="space-y-4">
-                    <div className="flex justify-center mb-6">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/10 bg-emerald-500/5 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 backdrop-blur-sm shadow-sm ring-1 ring-emerald-500/5">
-                            <ShieldCheck className="w-3.5 h-3.5" />
-                            Secure & Private Analysis
-                        </div>
-                    </div>
                     <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-[#1A1A1A] max-w-4xl mx-auto leading-tight">
                         What shall we <span className="text-[#FF7A00]">analyze</span> today?
                     </h1>

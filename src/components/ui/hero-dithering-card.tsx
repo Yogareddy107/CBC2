@@ -52,11 +52,8 @@ export function CTASection({ children }: { children?: React.ReactNode }) {
                         </h1>
 
                         {/* Description */}
-                        <p className="text-[#1A1A1A]/60 text-lg md:text-xl max-w-2xl mb-12 leading-relaxed">
-                            Stop digging through code manually. 
-                            <span className="block font-bold text-[#1A1A1A] mt-1 text-balance">
-                                See the system architecture, problem areas, and integration risks instantly.
-                            </span>
+                        <p className="text-[#1A1A1A]/50 text-lg md:text-xl max-w-2xl mb-12 leading-relaxed font-medium">
+                            Stop digging through code manually. See the system architecture, problem areas, and integration risks instantly.
                         </p>
 
                         {children}
