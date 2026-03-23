@@ -47,3 +47,5 @@ next-env.d.ts
 # temporary files
 /tmp/
 .gemini/
+lint_results.json
+
