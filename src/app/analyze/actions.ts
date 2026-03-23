@@ -16,6 +16,7 @@ import { requireArchitect, requireMember } from "@/lib/auth/rbac";
 import { generateRemediation } from "@/lib/llm/remediation-client";
 import { rateLimit } from "@/lib/rate-limit";
 import { generateAIObject } from "@/lib/llm/unified-client";
+import { getVCSToken } from "@/lib/vcs/token";
 import { z } from "zod";
 
 
@@ -209,14 +210,7 @@ export async function runAnalysis(analysisId: string, repoUrl: string) {
         const [, owner, repo] = match;
         const sanitizedRepo = repo.replace(/\.git$/, '');
 
-        let userToken: string | undefined;
-        try {
-            const prefs = await account.getPrefs();
-            const providerType = detectProvider(repoUrl);
-            if (providerType) userToken = prefs[`${providerType}_token`];
-        } catch (e) {
-            console.warn("Failed to fetch user prefs for VCS token", e);
-        }
+        const userToken = await getVCSToken(repoUrl, account);
 
         const rawRepoData = await provider.getRepoData(owner, sanitizedRepo, userToken);
         if (subPath) {
@@ -419,15 +413,7 @@ export async function generateRemediationPR(analysisId: string, issueType: 'viol
         const [, owner, repo] = match;
         const sanitizedRepo = repo.replace(/\.git$/, '');
 
-        // 1. Get User Token
-        let userToken: string | undefined;
-        try {
-            const prefs = await account.getPrefs();
-            const providerType = detectProvider(repoUrl);
-            if (providerType) userToken = prefs[`${providerType}_token`];
-        } catch (e) {
-            console.warn("Failed to fetch user prefs for remediation", e);
-        }
+        const userToken = await getVCSToken(repoUrl, account);
 
         // 2. Fetch File Content
         const content = await provider.getFileContent(owner, sanitizedRepo, filePath, userToken);

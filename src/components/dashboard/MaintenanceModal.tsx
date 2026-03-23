@@ -7,13 +7,18 @@ import { cn } from '@/lib/utils';
 
 export function MaintenanceModal() {
     const [isOpen, setIsOpen] = useState(false);
+
     useEffect(() => {
-        // Show every time the dashboard is loaded/refreshed
-        const timer = setTimeout(() => setIsOpen(true), 1500);
-        return () => clearTimeout(timer);
+        // Only show if not previously dismissed in this browser environment
+        const wasDismissed = localStorage.getItem('cbc-maintenance-v2-dismissed');
+        if (!wasDismissed) {
+            const timer = setTimeout(() => setIsOpen(true), 1500);
+            return () => clearTimeout(timer);
+        }
     }, []);
 
     const handleDismiss = () => {
+        localStorage.setItem('cbc-maintenance-v2-dismissed', 'true');
         setIsOpen(false);
     };
 

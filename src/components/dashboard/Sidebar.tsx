@@ -44,7 +44,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
     if (!isMounted) {
         return (
             <aside className={cn(
-                "w-72 border-r border-slate-200 bg-white flex flex-col fixed inset-y-0 left-0 z-50 lg:translate-x-0"
+                "w-72 border-r border-slate-200 bg-white flex flex-col fixed inset-y-0 left-0 z-50 shadow-xl lg:shadow-none transition-transform duration-300 ease-in-out lg:translate-x-0"
             )}>
                 <div className="h-16 flex items-center px-6 border-b border-slate-100">
                     <div className="flex items-center gap-2.5">

@@ -26,6 +26,8 @@ export class GitLabProvider implements VCSProvider {
         const treeRes = await fetch(`${this.baseUrl}/projects/${projectPath}/repository/tree?recursive=true&per_page=100`, { headers: h });
         const tree = await treeRes.json();
 
+        const defaultBranch = data.default_branch || 'main';
+
         return {
             name: data.name,
             owner: data.namespace.path,
@@ -33,13 +35,24 @@ export class GitLabProvider implements VCSProvider {
             stars: data.star_count,
             language: null, // GitLab requires separate call for languages
             isPrivate: data.visibility === 'private',
-            defaultBranch: data.default_branch,
+            defaultBranch: defaultBranch,
             tree: (tree || []).map((t: any) => t.path),
-            readme: "", // TODO: Implement specific fetching for GitLab
+            readme: await this.fetchReadme(owner, repo, defaultBranch, h),
             packageJson: "",
             architecture: "",
             contributing: ""
         };
+    }
+
+    private async fetchReadme(owner: string, repo: string, ref: string, headers: HeadersInit): Promise<string> {
+        const projectPath = encodeURIComponent(`${owner}/${repo}`);
+        const names = ['README.md', 'readme.md', 'README.txt', 'readme.txt', 'README'];
+        for (const name of names) {
+            const filePath = encodeURIComponent(name);
+            const res = await fetch(`${this.baseUrl}/projects/${projectPath}/repository/files/${filePath}/raw?ref=${ref}`, { headers });
+            if (res.ok) return await res.text();
+        }
+        return "";
     }
 
     async getFileContent(owner: string, repo: string, path: string, token?: string): Promise<string> {
@@ -47,7 +60,13 @@ export class GitLabProvider implements VCSProvider {
         const projectPath = encodeURIComponent(`${owner}/${repo}`);
         const filePath = encodeURIComponent(path);
         
-        const res = await fetch(`${this.baseUrl}/projects/${projectPath}/repository/files/${filePath}/raw?ref=main`, { headers: h });
+        // Fetch project to get default branch if token is needed
+        const projRes = await fetch(`${this.baseUrl}/projects/${projectPath}`, { headers: h });
+        if (!projRes.ok) return "";
+        const proj = await projRes.json();
+        const ref = proj.default_branch || 'main';
+
+        const res = await fetch(`${this.baseUrl}/projects/${projectPath}/repository/files/${filePath}/raw?ref=${ref}`, { headers: h });
         if (!res.ok) return "";
         return await res.text();
     }

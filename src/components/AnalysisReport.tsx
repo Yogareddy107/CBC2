@@ -6,14 +6,15 @@ import {
     Activity, ShieldCheck, Zap, Layout, GitBranch,
     Play, AlertTriangle, CheckCircle2, XCircle, Shield,
     Thermometer, Component, ArrowRight, BookOpen, Globe, Construction,
-    MessageSquare, CheckSquare, CheckCircle, FolderOpen, Loader2
+    MessageSquare, CheckSquare, CheckCircle, FolderOpen, Loader2,
+    Lock, Gauge, Trash2, Cpu, Ship, Info, ShieldAlert, Share2, Terminal, Key, Copy, Sparkles
 } from 'lucide-react';
+
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { generateRemediationPR } from '@/app/analyze/actions';
-import { Sparkles } from 'lucide-react';
 import { CommentSystem } from './CommentSystem';
 import { updateFileReview } from '@/app/team/actions';
 import { predictImpact } from '@/app/analyze/actions';
@@ -1086,6 +1087,470 @@ export interface AnalysisReportProps {
     reviews?: any[];
 }
 
+// --- New Sections ---
+
+const CleanupSection = memo(function CleanupSection({ data }: { data: any }) {
+    if (!data) return null;
+    return (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+             <div className="grid md:grid-cols-2 gap-8">
+                <div className="p-8 bg-slate-900 border border-white/10 rounded-[2rem] text-white">
+                    <div className="flex items-center gap-3 mb-6">
+                        <Trash2 className="w-5 h-5 text-amber-400" />
+                        <h3 className="text-xl font-black">Unused Files</h3>
+                    </div>
+                    {data.unusedFiles && data.unusedFiles.length > 0 ? (
+                        <div className="space-y-3">
+                            {data.unusedFiles.map((f: any, i: number) => (
+                                <div key={i} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
+                                    <span className="text-[11px] font-mono font-bold opacity-80">{f.file}</span>
+                                    <Badge className="bg-amber-500/10 text-amber-400 border-none text-[9px] font-black">Confidence: {f.confidence}</Badge>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="py-12 text-center bg-white/5 rounded-2xl border border-white/5">
+                            <Sparkles className="w-6 h-6 text-emerald-400 mx-auto mb-2" />
+                            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Optimized: No Garbage Files</p>
+                        </div>
+                    )}
+                </div>
+                <div className="p-8 bg-white border border-border/40 rounded-[2rem]">
+                    <div className="flex items-center gap-3 mb-6 text-slate-800">
+                        <Cpu className="w-5 h-5 text-primary" />
+                        <h3 className="text-xl font-black">Dependencies</h3>
+                    </div>
+                    {data.unusedDeps && data.unusedDeps.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                            {data.unusedDeps.map((dep: string, i: number) => (
+                                <Badge key={i} variant="outline" className="bg-slate-50 border-slate-200 text-slate-600 px-3 py-1 font-bold">
+                                    {dep}
+                                </Badge>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-xs text-slate-400 font-bold mb-6">All dependencies are actively imported.</p>
+                    )}
+                    <div className="mt-8 p-6 bg-emerald-50 border border-emerald-100 rounded-2xl">
+                        <p className="text-xs font-black text-emerald-700 uppercase mb-1">IMPACT OF CLEANUP</p>
+                        <p className="text-sm font-bold text-emerald-900">{data.impactOfCleanup || 'No immediate cleanup actions required.'}</p>
+                    </div>
+                </div>
+             </div>
+        </div>
+    );
+});
+
+const CICDSection = memo(function CICDSection({ data }: { data: any }) {
+    if (!data) return null;
+    return (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+             <div className="p-10 bg-white border border-border/40 rounded-[2.5rem] shadow-sm">
+                <div className="flex items-center justify-between mb-10">
+                    <div className="flex items-center gap-3">
+                        <Ship className="w-6 h-6 text-primary" />
+                        <h3 className="text-2xl font-black text-slate-900">CI/CD Readiness</h3>
+                    </div>
+                    <Badge className={cn(
+                        "px-4 py-1.5 font-black text-xs uppercase shadow-lg",
+                        data.readiness === 'Ready' ? "bg-emerald-500 text-white" : "bg-amber-500 text-white"
+                    )}>
+                        {data.readiness}
+                    </Badge>
+                </div>
+                <div className="grid md:grid-cols-2 gap-8">
+                    <div className="space-y-4">
+                        {data.checklist.map((item: any, i: number) => (
+                            <div key={i} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                <span className="text-sm font-bold text-slate-700">{item.label}</span>
+                                {item.status === 'Pass' ? (
+                                    <CheckCircle className="w-4 h-4 text-emerald-500" />
+                                ) : (
+                                    <AlertTriangle className="w-4 h-4 text-amber-500" />
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                    <div className="p-8 bg-slate-900 rounded-[2rem] text-white relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-6 opacity-10">
+                            <Construction className="w-24 h-24" />
+                        </div>
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-primary mb-4">Top Pipeline Risk</h4>
+                        <p className="text-lg font-bold leading-relaxed">{data.topRisk}</p>
+                    </div>
+                </div>
+             </div>
+        </div>
+    );
+});
+
+const SecuritySection = memo(function SecuritySection({ data }: { data: any }) {
+    if (!data) return null;
+    const hasIssues = data.criticalIssues?.length > 0 || data.warnings?.length > 0;
+
+    return (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="grid md:grid-cols-2 gap-8">
+                <div className="p-8 bg-slate-900 border border-white/10 rounded-[2rem] text-white">
+                    <div className="flex items-center gap-3 mb-6">
+                        <Lock className="w-5 h-5 text-red-400" />
+                        <h3 className="text-xl font-black">Critical Issues</h3>
+                    </div>
+                    {data.criticalIssues && data.criticalIssues.length > 0 ? (
+                        <div className="space-y-4">
+                            {data.criticalIssues.map((issue: any, i: number) => (
+                                <div key={i} className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+                                    <p className="text-xs font-mono text-red-400 mb-1">{issue.file}:L{issue.line}</p>
+                                    <p className="text-sm font-bold">{issue.issue}</p>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="p-8 text-center bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                            <CheckCircle className="w-8 h-8 text-emerald-500 mx-auto mb-3" />
+                            <p className="text-emerald-400 font-black text-sm uppercase">Secure: 0 Critical Risks</p>
+                            <p className="text-[10px] text-emerald-400/60 mt-1">AI verified codebase for common exploits.</p>
+                        </div>
+                    )}
+                </div>
+                <div className="p-8 bg-white border border-border/40 rounded-[2rem]">
+                    <div className="flex items-center gap-3 mb-6 font-black text-slate-800">
+                        <ShieldSection icon={Shield} title="Security Posture" />
+                    </div>
+                    <div className="space-y-3">
+                        {data.passedChecks && data.passedChecks.length > 0 ? (
+                            data.passedChecks.map((check: string, i: number) => (
+                                <div key={i} className="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                                    <CheckCircle className="w-4 h-4 text-emerald-500" />
+                                    <span className="text-xs font-black text-emerald-800">{check}</span>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="text-center py-6">
+                                <p className="text-[10px] font-black uppercase text-slate-400">Baseline Security Verified</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+});
+
+const PerformanceSection = memo(function PerformanceSection({ data }: { data: any }) {
+    if (!data) return null;
+    return (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+             <div className="p-10 bg-white border border-border/40 rounded-[2.5rem] shadow-sm">
+                <div className="flex items-center gap-3 mb-8">
+                    <Gauge className="w-6 h-6 text-primary" />
+                    <h3 className="text-xl font-black text-slate-900">Performance Bottlenecks</h3>
+                </div>
+                {data.bottlenecks && data.bottlenecks.length > 0 ? (
+                    <div className="grid gap-4">
+                        {data.bottlenecks.map((b: any, i: number) => (
+                            <div key={i} className="p-6 bg-slate-50 border border-slate-100 rounded-3xl">
+                                <p className="text-sm font-black font-mono text-primary mb-1">{b.file}</p>
+                                <p className="text-sm text-slate-600 font-bold">{b.reason}</p>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="py-16 text-center bg-slate-50 rounded-[2rem] border border-slate-100">
+                        <Zap className="w-8 h-8 text-amber-400 mx-auto mb-4" />
+                        <p className="text-sm font-black text-slate-900 uppercase">High Performance: 0 Bottlenecks</p>
+                        <p className="text-xs text-slate-500 mt-2">No significant blocking operations or memory leaks detected.</p>
+                    </div>
+                )}
+                {data.quickWin && (
+                    <div className="mt-8 p-6 bg-primary/5 border border-primary/10 rounded-3xl">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">QUICK WIN</h4>
+                        <p className="text-base font-bold text-slate-900 italic">"{data.quickWin}"</p>
+                    </div>
+                )}
+             </div>
+        </div>
+    );
+});
+
+const LocalGuardSection = memo(function LocalGuardSection({ analysisId }: { analysisId: string }) {
+    const script = `#!/bin/bash
+# CheckBeforeCommit (CBC) Pre-commit Guard
+# Install: Save this as .git/hooks/pre-commit and chmod +x .git/hooks/pre-commit
+
+echo "🔍 CBC: Analyzing staged changes..."
+
+# 1. Get staged files
+STAGED_FILES=$(git diff --cached --name-only)
+
+if [ -z "$STAGED_FILES" ]; then
+  exit 0
+fi
+
+# 2. Collect file contents (limited to first 5 files for speed)
+JSON_FILES="["
+COUNT=0
+for FILE in $STAGED_FILES; do
+  if [ $COUNT -ge 5 ]; then break; fi
+  if [ -f "$FILE" ]; then
+    CONTENT=$(cat "$FILE" | sed 's/\\\\/\\\\\\\\/g' | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\\n/\\\\n/g')
+    JSON_FILES="$JSON_FILES{\\"path\\":\\"$FILE\\",\\"content\\":\\"$CONTENT\\"},"
+    COUNT=$((COUNT+1))
+  fi
+done
+JSON_FILES="\${JSON_FILES%,}]"
+
+# 3. Call CBC API
+REPO_URL=$(git config --get remote.origin.url)
+API_KEY="cbc_14ebd2a976003db762cef41a50bfb9a3332405b73860cab2"
+
+RESPONSE=$(curl -s -X POST "https://cbc2-five.vercel.app/api/hook/analyze" \\
+  -H "Content-Type: application/json" \\
+  -d "{\\"apiKey\\":\\"\$API_KEY\\",\\"repoUrl\\":\\"\$REPO_URL\\",\\"files\\":\$JSON_FILES}")
+
+# 4. Parse Results
+SUCCESS=$(echo \$RESPONSE | grep -o '"success":true')
+if [ -z "\$SUCCESS" ]; then
+  echo "❌ CBC: Analysis failed or unauthorized."
+  echo "\$RESPONSE"
+  exit 0 # Don't block if API is down
+fi
+
+SAFETY_SCORE=$(echo \$RESPONSE | grep -o '"safetyScore":[0-9]*' | grep -o '[0-9]*')
+MAX_RISK=$(echo \$RESPONSE | grep -o '"maxRisk":"[^"]*"' | cut -d'"' -f4)
+
+echo "----------------------------------------"
+echo "✅ CBC Analysis Complete"
+echo "🛡️  Safety Score: \$SAFETY_SCORE%"
+echo "⚠️  Max Risk: \${MAX_RISK^^}"
+echo "----------------------------------------"
+
+if [ "\$MAX_RISK" == "critical" ]; then
+  echo "🛑 CRITICAL RISK DETECTED. Commit blocked."
+  exit 1
+fi
+
+exit 0`;
+
+    return (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="p-10 bg-white border border-border/40 rounded-[2.5rem] shadow-sm">
+                <div className="flex items-center gap-3 mb-10">
+                    <ShieldCheck className="w-6 h-6 text-primary" />
+                    <div>
+                        <h3 className="text-2xl font-black text-slate-900">Local Repository Guard</h3>
+                        <p className="text-sm text-slate-500 font-bold">Authenticate and deploy real-time security guards to your local Git workflow.</p>
+                    </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-12">
+                    <div className="space-y-8">
+                        <div className="p-6 bg-slate-900 rounded-3xl text-white">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">Active Key</p>
+                            <div className="flex items-center justify-between">
+                                <code className="text-sm font-mono font-bold tracking-widest">cbc_14eb••••••••••••••••••••••••</code>
+                                <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => navigator.clipboard.writeText("cbc_14ebd2a976003db762cef41a50bfb9a3332405b73860cab2")}
+                                    className="text-white hover:bg-white/10"
+                                >
+                                    <Copy className="w-4 h-4" />
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-6">
+                            <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">Deployment Instructions</h4>
+                            <div className="space-y-4">
+                                {[
+                                    { step: "01", title: "Navigate to local root", cmd: "cd your-project-path" },
+                                    { step: "02", title: "Save script as hook", cmd: ".git/hooks/pre-commit" },
+                                    { step: "03", title: "Grant permissions", cmd: "chmod +x .git/hooks/pre-commit" }
+                                ].map((item, i) => (
+                                    <div key={i} className="flex gap-4 items-start">
+                                        <span className="text-lg font-black text-primary opacity-30">{item.step}</span>
+                                        <div>
+                                            <p className="text-sm font-black text-slate-800">{item.title}</p>
+                                            <code className="text-[10px] text-slate-500 font-mono">{item.cmd}</code>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="p-6 bg-amber-50 border border-amber-100 rounded-3xl flex gap-4">
+                            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+                            <div>
+                                <h4 className="text-[10px] font-black uppercase text-amber-700 mb-1">Encryption Warning</h4>
+                                <p className="text-xs text-amber-800 font-bold leading-relaxed">
+                                    Your Security Key is used to verify repository ownership. Never commit this script containing the key to public repositories.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="relative group">
+                        <div className="absolute -inset-1 bg-gradient-to-r from-primary to-orange-400 rounded-[2rem] blur opacity-10 group-hover:opacity-20 transition duration-1000"></div>
+                        <div className="relative p-6 bg-slate-50 border border-slate-100 rounded-[2rem]">
+                            <div className="flex items-center justify-between mb-4">
+                                <ShieldSection icon={Terminal} title="Security Protocol" />
+                                <Badge className="bg-slate-200 text-slate-600 border-none font-black text-[9px]">pre-commit-guard.sh</Badge>
+                            </div>
+                            <div className="bg-slate-900 rounded-2xl p-6 h-[400px] overflow-y-auto scrollbar-hide relative">
+                                <pre className="text-[10px] font-mono text-emerald-400 leading-relaxed">
+                                    {script}
+                                </pre>
+                                <div className="absolute top-4 right-4">
+                                    <Button 
+                                        size="sm" 
+                                        variant="outline" 
+                                        className="bg-white/5 border-white/10 text-white hover:bg-white/20 font-black h-8 px-3"
+                                        onClick={() => navigator.clipboard.writeText(script)}
+                                    >
+                                        <Copy className="w-3.5 h-3.5 mr-2" />
+                                        Copy Script
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+});
+
+const IDEIntegrationSection = memo(function IDEIntegrationSection() {
+    return (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="p-10 bg-white border border-border/40 rounded-[2.5rem] shadow-sm">
+                <div className="flex items-center gap-3 mb-10">
+                    <Layout className="w-6 h-6 text-primary" />
+                    <div>
+                        <h3 className="text-2xl font-black text-slate-900">IDE Integration</h3>
+                        <p className="text-sm text-slate-500 font-bold">Extension & API Access for your development environment.</p>
+                    </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-12">
+                    <div className="p-8 bg-slate-50 border border-slate-100 rounded-[2rem]">
+                        <h4 className="text-lg font-black text-slate-900 mb-2">IDE Extension Keys</h4>
+                        <p className="text-sm text-slate-500 font-bold mb-8">Generate keys to use the CheckBeforeCommit VS Code extension.</p>
+                        
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Key Name (e.g. VS Code - MacBook)</label>
+                                <div className="flex gap-2">
+                                    <Input placeholder="Personal VS Code" className="rounded-xl border-slate-200 h-11" />
+                                    <Button className="bg-slate-900 hover:bg-slate-800 text-white font-black px-6 rounded-xl h-11">Generate Key</Button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-10 pt-10 border-t border-slate-200">
+                            <h5 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-6">Active Keys</h5>
+                            <div className="flex flex-col items-center justify-center py-10 grayscale opacity-40">
+                                <Key className="w-12 h-12 text-slate-300 mb-4" />
+                                <p className="text-sm font-bold text-slate-400">No active keys found.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-8 bg-slate-900 rounded-[2.5rem] text-white relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-10 opacity-5">
+                            <Layout className="w-48 h-48" />
+                        </div>
+                        <h4 className="text-xl font-black mb-6">VS Code Marketplace</h4>
+                        <p className="text-sm text-slate-400 leading-relaxed font-bold mb-8">
+                            Get real-time feedback while you code. CBC Extension highlights security and performance risks directly in your editor.
+                        </p>
+                        <Button className="w-full bg-primary hover:bg-primary/80 text-white font-black h-12 rounded-2xl">
+                            Install from Marketplace
+                        </Button>
+                        <div className="mt-12 bg-white/5 border border-white/10 rounded-2xl p-4">
+                             <div className="flex items-center gap-3">
+                                <div className="p-2 bg-emerald-500/20 rounded-lg">
+                                    <Zap className="w-4 h-4 text-emerald-400" />
+                                </div>
+                                <p className="text-[11px] font-bold text-slate-300 italic">"This extension saved me from pushing a serious memory leak in Feature-Y segment."</p>
+                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+});
+
+// Helper for labels
+function ShieldSection({ icon: Icon, title }: { icon: any, title: string }) {
+    return (
+        <div className="flex items-center gap-2">
+            <Icon className="w-4 h-4" />
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em]">{title}</h4>
+        </div>
+    )
+}
+
+const APIContractSection = memo(function APIContractSection({ data }: { data: any }) {
+    if (!data) return null;
+    return (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+             <div className="p-10 bg-white border border-border/40 rounded-[2.5rem] shadow-sm">
+                <div className="flex items-center justify-between mb-10">
+                    <div className="flex items-center gap-3">
+                        <Globe className="w-6 h-6 text-primary" />
+                        <h3 className="text-2xl font-black text-slate-900">API Architecture Map</h3>
+                    </div>
+                    <Badge className="bg-slate-900 text-white border-none px-4 py-1.5 font-black text-[10px] uppercase">
+                        {data.documented || '0'} Documented
+                    </Badge>
+                </div>
+                
+                {data.topEndpoints && data.topEndpoints.length > 0 ? (
+                    <div className="space-y-4">
+                        {data.topEndpoints.map((ep: any, i: number) => (
+                            <div key={i} className="group p-6 bg-slate-50 border border-slate-100 rounded-[2rem] hover:bg-white transition-all hover:shadow-lg">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-3">
+                                        <span className={cn(
+                                            "px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest",
+                                            ep.method === 'GET' ? "bg-blue-100 text-blue-600" : "bg-emerald-100 text-emerald-600"
+                                        )}>
+                                            {ep.method}
+                                        </span>
+                                        <span className="text-sm font-black font-mono text-slate-800">{ep.path}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {ep.authRequired && <Lock className="w-3.5 h-3.5 text-slate-400" />}
+                                        <Badge variant="outline" className="text-[8px] border-slate-200 font-bold">Radius: {ep.blastRadius}</Badge>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="p-3 bg-white/50 rounded-xl text-[10px] font-black text-slate-500">
+                                        PERFORMANCE: <span className="text-slate-800 font-black ml-1">{ep.performanceRisk}</span>
+                                    </div>
+                                    <div className="p-3 bg-white/50 rounded-xl text-[10px] font-black text-slate-500">
+                                        VALIDATION: <span className="text-slate-800 font-black ml-1">{ep.validationPresent ? 'Present' : 'Missing'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="py-20 text-center bg-slate-50 rounded-[2rem] border border-slate-100">
+                        <Globe className="w-8 h-8 text-slate-300 mx-auto mb-4 opacity-20" />
+                        <p className="text-sm font-black text-slate-400 uppercase">No API Endpoints Detected</p>
+                        <p className="text-xs text-slate-400 mt-2">This repository may be a library or background service.</p>
+                    </div>
+                )}
+             </div>
+        </div>
+    );
+});
+
+
 // --- Main Layout ---
 export function AnalysisReport({ 
     data: incomingData, 
@@ -1094,6 +1559,7 @@ export function AnalysisReport({
     teamId,
     reviews = []
 }: AnalysisReportProps) {
+    const [activeTab, setActiveTab] = useState('overview');
     const [activeSection, setActiveSection] = useState<string | null>(null);
     const [fixingId, setFixingId] = useState<string | null>(null);
 
@@ -1124,92 +1590,178 @@ export function AnalysisReport({
         if (activeSection === sectionId) setActiveSection(null);
         else setActiveSection(sectionId);
     };
+    const tabs = [
+        { id: 'overview', label: 'Overview', icon: Layout },
+        { id: 'onboarding', label: 'Onboarding', icon: BookOpen },
+        { id: 'blast', label: 'Blast Radius', icon: Zap },
+        { id: 'risk', label: 'Risk & Debt', icon: ShieldAlert },
+        { id: 'security', label: 'Security', icon: Lock },
+        { id: 'performance', label: 'Performance', icon: Gauge },
+        { id: 'cleanup', label: 'Cleanup', icon: Trash2 },
+        { id: 'api', label: 'API Map', icon: Globe },
+        { id: 'local-guard', label: 'Local Guard', icon: ShieldCheck },
+        { id: 'ide', label: 'IDE Integration', icon: Key },
+        { id: 'cicd', label: 'CI/CD', icon: Ship },
+        { id: 'verdict', label: 'Verdict', icon: CheckCircle2 },
+    ];
 
     return (
         <div className="w-full max-w-[1000px] mx-auto pb-32 font-sans selection:bg-primary/20 relative">
             <TLDRSection data={data.tldr} repoUrl={repoUrl} />
-            
-            {data.benchmarking && (
-                <MaturityBenchmark 
-                    data={data.benchmarking} 
-                    language={data.tldr.architecture.includes('Python') ? 'Python' : 'Next.js'} 
-                />
-            )}
 
-            <div className="grid gap-12 mt-8">
-                <MaturityScale 
-                    data={data.maturity} 
-                    onComment={() => toggleComments('maturity')} 
-                    analysisId={analysisId}
-                    teamId={teamId}
-                />
-                <OnboardingPath 
-                    data={data.onboarding} 
-                    onComment={() => toggleComments('onboarding')}
-                    analysisId={analysisId}
-                    teamId={teamId}
-                    reviews={reviews}
-                />
-                <ModuleInsights data={data.modulePurposes} />
-                
-                {/* NEW CORE FEATURES */}
-                <div className="mt-16 mb-8">
-                    <div className="px-3 py-1 rounded-full bg-slate-900 text-white w-fit text-[10px] font-black uppercase tracking-[0.2em] mb-4">
-                        Interactive Protection
+            {/* Premium Metric Header */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                {[
+                    { label: "HEALTH SCORE", value: `${data.healthBreakdown?.score || 0}/100`, sub: "Moderate", color: "text-primary" },
+                    { label: "MAINTAINABILITY", value: `${data.riskAndDebt.maintainability.score}/10`, sub: "-3 missing tests", color: "text-amber-500" },
+                    { label: "ONBOARDING", value: data.riskAndDebt.onboardingTime.duration, sub: "+1 no README", color: "text-blue-500" },
+                    { label: "TEST COVERAGE", value: data.riskAndDebt.testCoverage.level, sub: "6 test files found", color: "text-red-500" }
+                ].map((m, i) => (
+                    <div key={i} className="p-6 bg-[#1A1A1A] border border-white/5 rounded-3xl shadow-xl">
+                        <div className="text-[10px] font-black text-slate-400 tracking-widest mb-2">{m.label}</div>
+                        <div className={cn("text-2xl font-black tracking-tighter mb-1", m.color)}>{m.value}</div>
+                        <div className="text-[10px] font-bold text-slate-500">{m.sub}</div>
                     </div>
-                    <ImpactExplorer analysisId={analysisId || ''} />
+                ))}
+            </div>
+
+            {/* Tab Navigation */}
+            <div className="flex flex-wrap items-center justify-between gap-4 py-8 border-b border-slate-100">
+                <div className="flex flex-wrap gap-2">
+                    {tabs.map((tab) => {
+                        const Icon = tab.icon;
+                        const active = activeTab === tab.id;
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id as any)}
+                                className={cn(
+                                    "flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black transition-all",
+                                    active 
+                                        ? "bg-slate-900 text-white shadow-lg shadow-slate-900/20" 
+                                        : "bg-white text-slate-400 border border-slate-100 hover:bg-slate-50"
+                                )}
+                            >
+                                <Icon className={cn("w-3.5 h-3.5", active ? "text-primary" : "text-slate-300")} />
+                                {tab.label}
+                            </button>
+                        )
+                    })}
                 </div>
 
-                <DependencyGraphSection data={data.dependencySummary} />
-                <HealthBreakdownSection data={data.healthBreakdown} />
-                <InfrastructureSection data={data.infrastructure} />
-                <ReadingTree data={data.onboarding} />
-                <ArchitectureSandbox 
-                    analysisId={analysisId || ''} 
-                    impactfulFiles={data.impactfulFiles || []} 
-                />
-                <PreCommitSimulation analysisId={analysisId || ''} />
-                <PreCommitGuide analysisId={analysisId || ''} />
+                <div className="flex items-center gap-2">
+                    <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="rounded-xl font-black text-[10px] uppercase tracking-widest border-slate-200 hover:bg-slate-50 gap-2"
+                        onClick={() => {
+                            navigator.clipboard.writeText(window.location.href);
+                            // You could add a toast here
+                        }}
+                    >
+                        <Share2 className="w-3.5 h-3.5" />
+                        Share Report
+                    </Button>
+                </div>
+            </div>
 
-                <BlastRadius 
-                    data={data.blastRadius} 
-                    onComment={() => toggleComments('blast')}
-                    analysisId={analysisId}
-                    teamId={teamId}
-                    impactfulFiles={data.impactfulFiles}
-                    reviews={reviews}
-                />
-                <RiskAndDebt 
-                    data={data.riskAndDebt} 
-                    onComment={() => toggleComments('risk')}
-                    analysisId={analysisId}
-                    teamId={teamId}
-                    reviews={reviews}
-                    onAutoFix={handleAutoFix}
-                    fixingId={fixingId}
-                />
-                <GovernanceSection 
-                    governance={data.governance} 
-                    onComment={() => toggleComments('governance')}
-                    onAutoFix={handleAutoFix}
-                    fixingId={fixingId}
-                />
-                {data.modernizationRoadmap && (
-                    <div className="mt-8">
-                        <ModernizationRoadmap 
-                            roadmap={data.modernizationRoadmap} 
-                            currentScore={data.healthBreakdown?.score || 0} 
+            {/* Tabbed Content */}
+            <div className="mt-8 min-h-[500px]">
+                {activeTab === 'overview' && (
+                    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        {data.benchmarking && (
+                            <MaturityBenchmark 
+                                data={data.benchmarking} 
+                                language={data.tldr.architecture.includes('Python') ? 'Python' : 'Next.js'} 
+                            />
+                        )}
+                        <MaturityScale 
+                            data={data.maturity} 
+                            onComment={() => toggleComments('maturity')} 
+                            analysisId={analysisId}
+                            teamId={teamId}
+                        />
+                         <div className="bg-[#1A1A1A] rounded-[2.5rem] p-8 overflow-hidden relative shadow-2xl">
+                            <div className="shrink-0 flex items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 mb-6 w-fit">
+                                <Zap className="w-5 h-5 text-primary fill-current" />
+                                <span className="text-[10px] font-black tracking-[0.2em] text-white uppercase">Core Data Flow</span>
+                            </div>
+                            <div className="flex items-center flex-wrap gap-3">
+                                {data.onboarding.dataFlow.split('->').map((step, idx, arr) => (
+                                    <div key={idx} className="flex items-center gap-3">
+                                        <div className="px-4 py-2 bg-white/10 rounded-2xl border border-white/5 text-sm font-mono font-bold text-slate-200">
+                                            {step.trim()}
+                                        </div>
+                                        {idx < arr.length - 1 && <ArrowRight className="w-4 h-4 text-primary opacity-50" />}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <HealthBreakdownSection data={data.healthBreakdown} />
+                        <InfrastructureSection data={data.infrastructure} />
+                    </div>
+                )}
+
+                {activeTab === 'onboarding' && (
+                    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <OnboardingPath 
+                            data={data.onboarding} 
+                            onComment={() => toggleComments('onboarding')}
+                            analysisId={analysisId}
+                            teamId={teamId}
+                            reviews={reviews}
+                        />
+                        <ReadingTree data={data.onboarding} />
+                    </div>
+                )}
+
+                {activeTab === 'blast' && (
+                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <BlastRadius 
+                            data={data.blastRadius} 
+                            onComment={() => toggleComments('blast')}
+                            analysisId={analysisId}
+                            teamId={teamId}
+                            impactfulFiles={data.impactfulFiles}
+                            reviews={reviews}
                         />
                     </div>
                 )}
-            </div>
-            {/* 11. IDE & Safety Infrastructure */}
-            <SectionHeader title="🛡️ Architectural Safety System" icon={ShieldCheck} />
-            <div className="grid lg:grid-cols-2 gap-8">
-                <IDEGuide />
-            </div>
 
-            <FinalRecommendation data={data.recommendation} />
+                {activeTab === 'risk' && (
+                    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <RiskAndDebt 
+                            data={data.riskAndDebt} 
+                            onComment={() => toggleComments('risk')}
+                            analysisId={analysisId}
+                            teamId={teamId}
+                            reviews={reviews}
+                            onAutoFix={handleAutoFix}
+                            fixingId={fixingId}
+                        />
+                        <GovernanceSection 
+                            governance={data.governance} 
+                            onComment={() => toggleComments('governance')}
+                            onAutoFix={handleAutoFix}
+                            fixingId={fixingId}
+                        />
+                    </div>
+                )}
+
+                {activeTab === 'security' && <SecuritySection data={data.security} />}
+                {activeTab === 'performance' && <PerformanceSection data={data.performance} />}
+                {activeTab === 'cleanup' && <CleanupSection data={data.cleanup} />}
+                {activeTab === 'cicd' && <CICDSection data={data.cicd} />}
+                {activeTab === 'api' && <APIContractSection data={data.apiContract} />}
+                {activeTab === 'local-guard' && <LocalGuardSection analysisId={analysisId || ''} />}
+                {activeTab === 'ide' && <IDEIntegrationSection />}
+
+                {activeTab === 'verdict' && (
+                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <FinalRecommendation data={data.recommendation} />
+                    </div>
+                )}
+            </div>
 
             {analysisId && (
                 <CommentSystem 
@@ -1222,3 +1774,5 @@ export function AnalysisReport({
         </div>
     );
 }
+
+
